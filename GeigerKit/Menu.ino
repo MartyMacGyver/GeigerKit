@@ -38,8 +38,9 @@ void Check_IR(){ // check if remote used and process the menu
 #endif
         menuChanged=true;
       } 
-      else {                            // do this stuff when leaving menu
+      else {                              // do this stuff when leaving menu
         Get_Settings();                   // start using the new settings
+        fastCnt=0;                        // keep tone mode and bargraph from going crazy when exiting
       }
       break;
 
@@ -242,6 +243,7 @@ static void saveMenuSetting (byte menu, float curValue) {
     break;
   case MENU_ALARM:
     if (curValue > MAX_ALARM) curValue = MAX_ALARM;
+    if (curValue ==0) AlarmOn = false;
     writeParam(curValue, ALARM_SET_ADDR);
     break;
   case MENU_DOSE_UNIT:
@@ -451,8 +453,8 @@ void Get_Settings(){ // read setting out of EEPROM and set local variables
   if (readParam(SCALER_ADDR) > 1 || RESET_ALL) {
     writeParam(false,SCALER_ADDR);
   }
-  scalerParam = (boolean)readParam(SCALER_ADDR);
-
+  //scalerParam = (boolean)readParam(SCALER_ADDR);
+  scalerParam = false;                            // don't come up in scaler mode
   doseRatio = readCPMtoDoseRatio();
 
   LoggingPeriod = readParam(LOG_PERIOD_ADDR);
@@ -553,7 +555,7 @@ static float readFloatParam(unsigned int addr) {
 
 static void toggleScaler() {
   scalerParam = !scalerParam;
-  writeParam(scalerParam, SCALER_ADDR);   // save the setting in EEPROM
+  //writeParam(scalerParam, SCALER_ADDR);   // no longer saving the setting in EEPROM
 }
 
 static void toggleRadLogger() {

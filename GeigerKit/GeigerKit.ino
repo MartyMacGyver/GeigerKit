@@ -1,4 +1,4 @@
-/* GeigerKit_Default sketch (v.10.1)    SHIPPING!       24,860 bytes              bHogan 3/31/13
+/* GeigerKit_Default sketch (v.10.2)    SHIPPING!    25062 / 624 bytes in 1.0.5     bHogan 8/30/13
  * This sketch was written for the DIYGeigerCounter Kit.
  * DIY Geiger invests a lot time and resources in providing this open source code, 
  * please support it by not purchasing knock-off versions of the hardware.
@@ -7,8 +7,11 @@
  * FEATURES:
  * The features in this release are discribed on the DIYGeigerCounter web site:
  * http://sites.google.com/site/diygeigercounter/software-features
- *
+ * NEW THIS VERSION:
+ * - #define & support for analog meter and DOGM display
+ * - startup disables scaler mode if it was on previously (setting no longer stored in EEPROM)
  * SETUP: See GeigerKit.h for pin maping
+ * TODO: Wire.h always included
  *
  * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
@@ -22,9 +25,9 @@
  * TO TAKE, REGARDING EXPOSURE TO RADIATION. THE GEIGER KIT AND IT'S SOFTWARE ARE FOR
  * EDUCATIONAL PURPOSES ONLY. DO NOT RELY ON THEM IN HAZARDOUS SITUATIONS!
  */
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
 // SETUP PARAMETERS
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
 #define EIGHT_CHAR     false            // formats for 2x8 LCD when true
 #define IR_SUPPORT     true             // enables IR support when true
 #define IR_RC5         false            // use Phillips RC5 IR protocol instead of Sony 
@@ -32,46 +35,64 @@
 #define APP_SUPPORT    true             // enables support for setting parameters from Windows Geiger Kit Setup app
 #define ALARM_BUTTON   true             // allows setup of alarm by pressing a button connected to pin 10
 #define AUTO_PRECISION true             // if true, decimals are dropped from the displayed dose rate as it gets larger (logged data is unaffected)
-#define TONE_MODE      true             // enables tone mode (like a metal detector) - requires speaker to be attached to pin A4
+#define TONE_MODE      true             // enables tone mode (like a metal detector)
 #define OLD_BARGRAPH   false            // if set to true, use the bargraph from v9 and earlier
-#define TONE_POT_ADJ   false            // if set to true, use a potentiometer attached to A0 to adjust tone instead of menu
+#define TONE_POT_ADJ   false            // if true, use a pot attached to A0 to adjust tone instead of menu
 
-//  This shouldn't normally be needed, but useful if no IR module is present and something else has already written to the EEPROM
-#define RESET_ALL      false            // use this to reset all settings back to default
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#if (EIGHT_CHAR)
-#define IR_SUPPORT  false               // No sense in having IR support on an 8 char display - no room for menus
-#endif
+////////////////////////////// THESE DEFINES HAVE PRECOMPILER ISSUES ! /////////////////////////////////////////////////////////
+#define ANALOG_METER   false            // if true, support for analog meter output - REQUIRES HARDWARE - see site
+////////////////////////////////////////  YOU MUST ALSO UNCOMMENT #include <Wire.h> IF TRUE
+#define DOGM_LCD       false            // if true, DogM LCD used for display (SPI interface)
+///////////////////////////////////////    YOU MUST ALSO UNCOMMENT DogLcd lcd(...) IF TRUE
 
 #include <Arduino.h>
-#if (ANDROID)
-#include <MeetAndroid.h>                // connects Geiger to SensorGraph on Android
-#endif
-#include <LiquidCrystal.h>              // HD44780 compatible LCDs work with this lib
 #include <EEPROM.h>
 #include <PinChangeInt.h>
 #include "GeigerKit.h"
 #include "IR.h"
 
+#if (ANDROID)
+#include <MeetAndroid.h>                // connects Geiger to SensorGraph on Android
+#endif
 
-////////////////////
-// DEBUG SETTINGS //
-////////////////////
-#define DEBUG          false            // if true, shows available memory and other debug info
-#define SELF_TEST      false            // if true, adds one to each counter every 167ms and simulates a ~360CPM count
+#if (DOGM_LCD)
+#include <DogLcd.h>                     // wayoda's library - http://code.google.com/p/doglcd/
+#else
+#include <LiquidCrystal.h>              // HD44780 compatible LCDs work with this lib
+#endif
 
-// instantiate the library and pass pins for (RS, Enable, D4, D5, D6, D7)
-LiquidCrystal lcd(LCDPIN_RS, LCDPIN_EN, LCDPIN_D4,
-LCDPIN_D5, LCDPIN_D6, LCDPIN_D7);    // default layout for the Geiger board 
+#if (ANALOG_METER)                      // This construct doesn't work! Wire.h will be included no matter what
+//#include <Wire.h>                     // MUST COMMENT OUT IF NOT USED - else 1226 bytes added
+#endif
+
+#if (EIGHT_CHAR)
+#define IR_SUPPORT  false               // No sense in having IR support on an 8 char display - no room for menus
+#endif
+
+#if (DOGM_LCD) // instantiate the DogM with pins for (SI, CLK, RS, CSB, [Reset, Backlight])
+//DogLcd lcd(DOGM_SI, DOGM_CLK, DOGM_RS, DOGM_CSB, DOGM_RST, DOGM_BKLT); // UNCOMMENT IF USED
+#else // instantiate the LiquidCrystal with for (RS, Enable, D4, D5, D6, D7)
+LiquidCrystal lcd(LCDPIN_RS, LCDPIN_EN, LCDPIN_D4,LCDPIN_D5, LCDPIN_D6, LCDPIN_D7);
+#endif
 
 #if (ANDROID)
 MeetAndroid Android;
 #endif
 
+//                             DEBUG DEFINES
+#define RESET_ALL      false            // reset CMOS settings to defaults - if unwanted settings in CMOS
+#define DEBUG          false            // if true, shows available memory and other debug info
+#define SELF_TEST      false            // if true, adds one to each counter every 167ms - simulates a ~360CPM count
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
 void setup(){
   float globalBgRadAvg;
-
   Serial.begin(9600);                   // comspec 96,N,8,1
+#if (ANALOG_METER)
+  Wire.begin();                         // for PCF8591 I2C chip for meter output
+#endif  
   attachInterrupt(0,GetEvent,FALLING);  // Geiger event on pin 2 triggers interrupt
   pinMode(LED_PIN,OUTPUT);              // setup LED pin
   pinMode(TUBE_SEL,INPUT);              // setup tube select jumper pin
@@ -89,13 +110,23 @@ void setup(){
 #endif
 
 #if (IR_SUPPORT)
-  pinMode(IR_PIN,INPUT);                // setup tube select jumper pin
+  pinMode(IR_PIN,INPUT);                // setup IR Input pin
   digitalWrite(IR_PIN, HIGH);
   PCintPort::attachInterrupt(IR_PIN, &IR_ISR, FALLING);  // add more attachInterrupt code as required
 #endif
-
   Blink(LED_PIN,4);                     // show it's alive
-#if (EIGHT_CHAR)
+#if (DOGM_LCD)
+  lcd.begin(DOG_LCD_M162,DOGM_CONTRAST,DOG_LCD_VCC_5V); // for 3.3V use DOG_LCD_VCC_3V
+  lcd.createChar(0, bar_0);             // load 7 custom characters in the LCD
+  lcd.createChar(1, bar_1);
+  lcd.createChar(2, bar_2);
+  lcd.createChar(3, bar_3);
+  lcd.createChar(4, bar_4);
+  lcd.createChar(5, bar_5);
+  lcd.home();
+  lcd.setBacklight(DOGM_BKL_HIGH,true); // set initial brightness, true = PWM control
+  lcd.noCursor();                       // DOGM cursor is on by default - turn it off
+#elif (EIGHT_CHAR)
   lcd.begin(8,2);                       // cols, rows of display (8x2, 16x2, etc.)
   lcd.createChar(0, cpmIcon);           // since there is no bar graph we can create special
   lcd.createChar(1, usvIcon);           //   chars for uSv, CPM, and the 1 & 10 minute icons
@@ -121,11 +152,11 @@ void setup(){
 #if (EIGHT_CHAR)
   lcd.print(F("GEIGER!"));              // display a simple banner
   lcd.setCursor(0,1);                   // set cursor on line 2
-  lcd.print(F("Ver. 10"));              // display the version
+  lcd.print(F(" v10.2"));               // display the version
 #else
   lcd.print(F("   GEIGER KIT"));        // display a simple banner
   lcd.setCursor(0,1);                   // set cursor on line 2
-  lcd.print(F("    Ver. 10.1"));          // display the version
+  lcd.print(F("    Ver. 10.2"));        // display the version
 #endif
   delay (1500);                         // leave the banner up for a bit
   clearDisp();                          // clear the screen
@@ -192,8 +223,8 @@ void setup(){
 #else
   lcd.print(F("CPM? "));                // display beginning "CPM"
 #endif
-  if (!radLogger){                        // no header if Radiation Logger is used
-    Serial.print(F("CPM,"));              // print header for CSV output to serial
+  if (!radLogger){                       // no header if Radiation Logger is used
+    Serial.print(F("CPM,"));             // print header for CSV output to serial
     serialprint_P((const char *)pgm_read_word(&(unit_table[doseUnit])));  // print dose unit (uSv/h, uR/h, or mR/h) to serial
     Serial.print(F(",Vcc\r\n"));
   }
@@ -223,7 +254,7 @@ void setup(){
 
 
 void loop(){
-  static boolean scalerDispOn = false;     // true when SW_1 on, and in continous count mode
+  static boolean scalerDispOn = false;  // true when SW_1 on, and in continous count mode
   static unsigned long lastButtonTime;  // counter for pressing the button to quickly
   static boolean scalerDispUsed = false;
 #if (TONE_POT_ADJ)
@@ -234,16 +265,16 @@ void loop(){
   do {
     clearDisp();
     lcd.print(F("DEFAULTS WRITTEN"));
-    lcd.setCursor(0,1);                   // set cursor on line 2
+    lcd.setCursor(0,1);                 // set cursor on line 2
     lcd.print(F("    TO EEPROM   "));
     delay(3000);
     clearDisp();
     lcd.print(F("SET RESET_ALL TO"));
-    lcd.setCursor(0,1);                   // set cursor on line 2
+    lcd.setCursor(0,1);                 // set cursor on line 2
     lcd.print(F("FALSE & REUPLOAD"));
     delay(3000);
   }
-  while (1);                             // loop for eternity
+  while (1);                            // loop for eternity
 #endif
   //5 lines below for self check - you should see very close to 360 CPM
 #if (SELF_TEST)
@@ -279,7 +310,7 @@ void loop(){
   else if (scalerDispOn) {
     clearDisp();
     scalerDispOn = false;
-    DispCounts(dispCnt);         // start main display immediately
+    DispCounts(dispCnt);                // start main display immediately
   }
 
 #if (TONE_MODE)
@@ -304,8 +335,8 @@ void loop(){
 
   if (millis() >= fastCountStart + 1000/ONE_SEC_MAX){ // refresh bargraph and alarm if in main display
     oneSecCount(fastCnt);
-    fastCnt=0;                         // reset counts
-    fastCountStart = millis();         // reset the period time
+    fastCnt=0;                          // reset counts
+    fastCountStart = millis();          // reset the period time
     if (!scalerDispOn) fastDisplay(getOneSecCount());      // display quick response data       
 #if (TONE_MODE)
     CPStoTone(getOneSecCount());
@@ -362,10 +393,12 @@ void DispCounts(unsigned long dcnt){    // calc and display predicted CPM & uSv/
   // "0" - throw away last average, "1" - keeps last average, "maxSamples -1" - keeps running avg.
   if (sampleCnt >= maxSamples) sampleCnt = 0;   // start a fresh average every 30 sec.
 
-  // the following line gives a faster response when counts increase or decrease rapidly 
-  if ((dcnt - avgCnt) > 9 || (avgCnt - dcnt) > 9) sampleCnt = 0;
+  // The following line gives a faster response when counts increase or decrease rapidly 
+  // It resets the running average if the rate changes by  +/- 35% (previously it was 9 counts)
+  if ((dcnt - avgCnt) > (avgCnt * .35) || (avgCnt - dcnt) > (avgCnt * .35)) sampleCnt = 0;
   uSv = float(dispCPM) / doseRatio;     // make dose rate conversion
   //Blink(LED_PIN,1);                   // uncomment to blink each didplay
+
 
 #if (ANDROID)
   Android.receive();                    // looks for new input from Android
@@ -396,12 +429,12 @@ void DispCounts(unsigned long dcnt){    // calc and display predicted CPM & uSv/
 #endif
 
 #if (TONE_MODE)
-  currentDispCPM = dispCPM;           // save the current CPM display in case the user sets the null point
+  currentDispCPM = dispCPM;             // save the current CPM display in case the user sets the null point
 #endif
 
   if (AlarmPoint > 0) {
     if (alarmInCPM) {
-      if (dispCPM > AlarmPoint)  {  // Alarm set to CPM
+      if (dispCPM > AlarmPoint)  {      // Alarm set to CPM
         AlarmOn = true;
         digitalWrite(ALARM_PIN, HIGH);  // turn on alarm (set alarm pin to Vcc)     
       }
@@ -423,6 +456,7 @@ void DispCounts(unsigned long dcnt){    // calc and display predicted CPM & uSv/
   }
 }
 
+
 void fastDisplay(unsigned long barCnt){ // quick response display on 2nd half of line 1
   barCnt = barCnt * 60;                 // scale CPS to CPM 
 #if (!EIGHT_CHAR)    // NOT IN 2x8 LCD FORMAT
@@ -437,7 +471,7 @@ void fastDisplay(unsigned long barCnt){ // quick response display on 2nd half of
 #endif
   if (lowVcc) {                         // overwrite display with battery voltage if low
     clearArea (11,0,5);
-    lcd.print(readVcc()/1000.,2);       // display as volts with 2 dec. place
+    lcd.print(lastVCC/1000.,2);         // display as volts with 2 dec. place
     lcd.write('V');
   }
   if (AlarmOn) {                        // overwrite display with alarm if on
@@ -445,6 +479,9 @@ void fastDisplay(unsigned long barCnt){ // quick response display on 2nd half of
     lcd.setCursor(11,0);
     lcd.print(F("ALARM"));
   } 
+#if (ANALOG_METER)
+  DoseToMeter(barCnt);                  // Send CPM from bargraph to analog meter functions
+#endif
 }
 
 
@@ -484,13 +521,13 @@ void DispRunCounts(){ // create the screen that shows the running counts
   lcd.setCursor(4, 0);
   lcd.print(tempSum,0);                 // display 1 minute CPM or running count
   if (dispOneMin) {
-    printDoseRate(temp_uSv,0,1);          // display 1 minute uSv, right justified
+    printDoseRate(temp_uSv,0,1);        // display 1 minute uSv, right justified
   }
 #endif
   if (!dispOneMin) {
 #if (EIGHT_CHAR)    // FOR 2x8 LCD FORMAT
     lcd.setCursor(0, 0);
-    lcd.write('C');                   // overwrite 10 minute icon with C if counting
+    lcd.write('C');                     // overwrite 10 minute icon with C if counting
 #else
     secLeft = 60 - (oneMinuteIndex*60/ONE_MIN_MAX);
     if (secLeft < 10) {
@@ -514,25 +551,25 @@ void DispRunCounts(){ // create the screen that shows the running counts
   temp_uSv = tempSum / doseRatio;
 #if (EIGHT_CHAR)    // FOR 2x8 LCD FORMAT
   lcd.setCursor(0, 1);
-  lcd.write(3);                       // display 10 min icon
+  lcd.write(3);                         // display 10 min icon
   lcd.write(' ');
-  lcd.print(tempSum,0);               // display 1 minute CPM or running count
+  lcd.print(tempSum,0);                 // display 1 minute CPM or running count
 #else
   lcd.setCursor(4, 1);
-  lcd.print(tempSum,0);               // display long period CPM
+  lcd.print(tempSum,0);                 // display long period CPM
   if (dispLongPeriod) {
-    printDoseRate(temp_uSv,1,1);      // display long period dose rate, right justified
+    printDoseRate(temp_uSv,1,1);        // display long period dose rate, right justified
   }
 #endif
   if (!dispLongPeriod && scalerPeriod < INFINITY) {
 #if (EIGHT_CHAR)    // FOR 2x8 LCD FORMAT
     lcd.setCursor(0, 1);
-    lcd.write('C');                   // overwrite 10 minute icon with C if counting
+    lcd.write('C');                     // overwrite 10 minute icon with C if counting
 #else
     secLeft = (scalerPeriod * 60) - ((longPeriodIndex*scalerPeriod*60)/LONG_PER_MAX);
     if (secLeft > 600) {  // longer than 10 min left, show minutes
       lcd.setCursor(13, 1);
-      lcd.print(secLeft/60,DEC); // show minutes left
+      lcd.print(secLeft/60,DEC);        // show minutes left
       lcd.write('m'); 
     } 
     else {
@@ -552,6 +589,7 @@ void DispRunCounts(){ // create the screen that shows the running counts
   }
 }
 
+
 unsigned long getOneSecCount() {
   unsigned long tempSum = 0;
   for (int i = 0; i <= ONE_SEC_MAX-1; i++){ // sum up 1 second counts
@@ -559,6 +597,7 @@ unsigned long getOneSecCount() {
   }
   return tempSum;
 }
+
 
 unsigned long getOneMinCount() {
   unsigned long tempSum = 0;
@@ -568,6 +607,7 @@ unsigned long getOneMinCount() {
   return tempSum;
 }
 
+
 unsigned long getLongPeriodCount() {
   unsigned long tempSum = 0;
   for (int i = 0; i <= LONG_PER_MAX-1; i++){ // sum up long period counts
@@ -575,6 +615,7 @@ unsigned long getLongPeriodCount() {
   }
   return tempSum;
 }
+
 
 void setAlarm(){ // RECURSIVE FUNCTION to change alarm set point when button repeatidly pushed
   unsigned long timeIn = millis();               // capture the time you got here
@@ -603,15 +644,15 @@ void setAlarm(){ // RECURSIVE FUNCTION to change alarm set point when button rep
         lcd.print(F("Alarm Off")); 
         delay(3000);
       }
-      setAlarm();                                        // call this function recursively if button was pushed
+      setAlarm();                            // call this function recursively if button was pushed
     }
   }                                                      // button not pushed - done use last setting for alarm point
   writeParam(AlarmPoint, ALARM_SET_ADDR);                // store new setting in EEPROM
 }
 
-// prints analog bar
+// two bargraph functions - legacy and new - only one will be called
 static void printBar(unsigned long value, unsigned long max, byte blocks) {
-  // Adapted from zxcounter by Andrei K. - https://github.com/andkom/zxcounter
+  // NEW STYLE - Adapted from zxcounter by Andrei K. - https://github.com/andkom/zxcounter
   // modified to remove floating point math
   byte bar_value, full_blocks, prtl_blocks;
 
@@ -635,7 +676,7 @@ static void printBar(unsigned long value, unsigned long max, byte blocks) {
   }
 }
 
-static void lcdBar(int counts){  // displays CPM as bargraph on 2nd line
+static void lcdBar(int counts){  // displays CPM as bargraph on 2nd line LEGACY STYLE
   // Adapted from DeFex http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1264215873/0
   // Had to change from 7 to 6 max blocks for display sanity
   unsigned int scaler = bargraphMax / 35;      // 6 char=41 "bars", scaler = counts/bar
@@ -664,7 +705,7 @@ void logCount(unsigned long lcnt){ // unlike logging sketch, just outputs to ser
 
   // Print to serial in a format that might be used by Excel
   Serial.print(logCPM,DEC);
-  if (!radLogger){                      // only CPM if Radiation Logger is used                    // only CPM if Radiation Logger is used
+  if (!radLogger){                      // only CPM if Radiation Logger is used
     Serial.write(',');    
     Serial.print(uSvLogged,4);
     Serial.write(','); // comma delimited
@@ -673,6 +714,7 @@ void logCount(unsigned long lcnt){ // unlike logging sketch, just outputs to ser
   Serial.print(F("\r\n"));
   Blink(LED_PIN,2);                     // show it logged
 }
+
 
 void oneSecCount(unsigned long dcnt) {
   static byte oneSecondIndex = 0;
@@ -683,6 +725,7 @@ void oneSecCount(unsigned long dcnt) {
   }
 }
 
+
 void resetOneMinCount() {  // clears out the one minute count
   memset(oneMinute, 0, sizeof(oneMinute));  // zero the entire array
   oneMinuteIndex=0;                     // reset index to 0
@@ -690,6 +733,7 @@ void resetOneMinCount() {  // clears out the one minute count
   oneMinCnt = 0;                        // reset the running count
   oneMinCountStart = millis();          // reset the running count start time
 }
+
 
 static void oneMinCount(unsigned long dcnt){ // Add CPM of period to 1M 
   oneMinute[oneMinuteIndex] = dcnt;
@@ -702,6 +746,7 @@ static void oneMinCount(unsigned long dcnt){ // Add CPM of period to 1M
   else oneMinuteIndex++;
 }
 
+
 void resetLongPeriodCount() {  // resets the one long period count
   memset(longPeriod, 0, sizeof(longPeriod));  // zero the entire array
   longPeriodIndex=0;                    // reset index to 0
@@ -709,6 +754,7 @@ void resetLongPeriodCount() {  // resets the one long period count
   longPeriodCnt = 0;                    // reset the running count
   longPeriodStart = millis();           // reset the running count start time
 }
+
 
 static void longPeriodCount(unsigned long dcnt){ // Add CPM of period to 1M 
   longPeriod[longPeriodIndex] = dcnt;
@@ -718,6 +764,7 @@ static void longPeriodCount(unsigned long dcnt){ // Add CPM of period to 1M
   }
   else longPeriodIndex++;
 }
+
 
 unsigned long readVcc() { // SecretVoltmeter from TinkerIt
   unsigned long result;
@@ -729,11 +776,11 @@ unsigned long readVcc() { // SecretVoltmeter from TinkerIt
   result = ADCL;
   result |= ADCH<<8;
   result = 1126400L / result; // Back-calculate AVcc in mV
+  lastVCC = result;           // TO DO - NOW MAKING ENOUGH CALLS TO WARRENT THIS - USING W/ METER
   return result;
 }
 
 #if (TONE_MODE)
-///////////////////////////////// ADDED FOR TONE //////////////////////////
 static void CPStoTone (unsigned long counts){
   unsigned long scaleMax;
   // 40 ohm speaker draws ~33mA
@@ -745,7 +792,11 @@ static void CPStoTone (unsigned long counts){
     counts -= nullPoint/60;             // remove nullpoint from count
   }
   if (toneSensitivity > 0) {
-    counts = 1 + ((counts+counts*counts)/(unsigned long)toneSensitivity);      // no real math behind this formula - obtained by experimentation; seems to produce better results than a straight linear function
+    // no real math behind this formula - obtained by experimentation; seems to produce better results than a straight linear function
+    counts = 1 + ((counts+counts*counts)/(unsigned long)toneSensitivity);      
+  } 
+  else {
+    counts = 1 + (counts + counts*counts*counts-counts*counts)/3;   // same as above, but different formula for even more sensitivity
   }
   scaleMax = bargraphMax;            // use the full scale setting for the bargraph as the max for the tone range
 #if (DEBUG && !TONE_POT_ADJ)
@@ -755,6 +806,7 @@ static void CPStoTone (unsigned long counts){
 #endif
   tone(TONE_PIN, lmap(counts,1,scaleMax,TONE_MIN_FREQ,TONE_MAX_FREQ));
 }
+
 
 // rolling your own map function saves a lot of memory
 unsigned long lmap(unsigned long x, unsigned long in_min, unsigned long in_max, unsigned long out_min, unsigned long out_max){
@@ -772,6 +824,7 @@ static void clearArea (byte col, byte line, byte nspaces){
   lcd.setCursor(col,line);
 }
 
+
 void printDoseRate (float rate, byte line, boolean rightJustify) {  // prints the uSv/hour rate on the right side of the LCD
   /* If AUTO_PRECISION is true, prints 2 decimal places if uSv is less than 10, 1 decimal place if 
    less than 100, and only whole numbers if the uSv rate is 100 or more.  This allows the LCD to 
@@ -786,11 +839,11 @@ void printDoseRate (float rate, byte line, boolean rightJustify) {  // prints th
     precision=2;
 #if (AUTO_PRECISION)
   } 
-  else if (rate < 100) {              // display 1 decimal place if less than 100
+  else if (rate < 100) {                // display 1 decimal place if less than 100
     startpos=14;
     precision=1;
   } 
-  else {                              // display only whole numbers if 100 or more
+  else {                                // display only whole numbers if 100 or more
     precision=0;
     startpos=16;
   }
@@ -807,6 +860,7 @@ void clearDisp (){
   lcd.setCursor(0,0);                   // do it again for the OLED
 }
 
+
 void Blink(byte led, byte times){ // just to flash the LED
   for (byte i=0; i< times; i++){
     digitalWrite(led,HIGH);
@@ -815,6 +869,7 @@ void Blink(byte led, byte times){ // just to flash the LED
     delay (100);
   }
 }
+
 
 // variables created by the build process when compiling the sketch
 extern int __bss_end;
@@ -829,10 +884,10 @@ int AvailRam(){
   return freeValue;
 } 
 
+
 byte getLength(unsigned long number){
   byte length = 0;
   unsigned long t = 1;
-
   do {
     length++;
     t*=10;
@@ -840,6 +895,7 @@ byte getLength(unsigned long number){
   while(t <= number);
   return length;
 }
+
 
 byte readButton(int buttonPin) { // reads LOW ACTIVE push buttom and debounces
   if (digitalRead(buttonPin)) return HIGH;    // still high, nothing happened, get out
@@ -850,11 +906,13 @@ byte readButton(int buttonPin) { // reads LOW ACTIVE push buttom and debounces
   }
 }
 
+
 #if (ANDROID)
 void androidInput(byte flag, byte numOfValues){ // automatically called when input from Android
   androidReturn = Android.getInt();           // set global with value from slider
 }
 #endif
+
 
 void lcdprint_P(const char *text) {  // print a string from progmem to the LCD
   /* Usage: lcdprint_P(pstring) or lcdprint_P(pstring_table[5].  If the string 
@@ -864,6 +922,7 @@ void lcdprint_P(const char *text) {  // print a string from progmem to the LCD
     lcd.write(pgm_read_byte(text++));
 }
 
+
 static void serialprint_P(const char *text) {  // print a string from progmem to the serial object
   /* Usage: serialprint_P(pstring) or serialprint_P(pstring_table[5].  If the string 
    table is stored in progmem and the index is a variable, the syntax is
@@ -871,6 +930,7 @@ static void serialprint_P(const char *text) {  // print a string from progmem to
   while (pgm_read_byte(text) != 0x00)
     Serial.write(pgm_read_byte(text++));
 }
+
 
 ///////////////////////////////// ISR ///////////////////////////////////
 void GetEvent(){   // ISR triggered for each new event (count)
@@ -881,9 +941,10 @@ void GetEvent(){   // ISR triggered for each new event (count)
   fastCnt++;
 }
 
+///////////////////////////////// For Serial Setup ///////////////////////////////////
 #if (APP_SUPPORT)
 String inputString = "";         // a string to hold incoming data
-///////////////////////////////// RICK Serial Event ///////////////////////////////////
+
 void serialEvent() {
   static boolean stringComplete = false;  // whether the string is complete
   static boolean inSetup = false;
@@ -922,7 +983,7 @@ void serialEvent() {
       Serial.write(',');
       Serial.println(AlarmPoint);
     } 
-    else if (inSetup == true) {       // only pay attention to any other input if we're already in setup mode
+    else if (inSetup == true) {         // only pay attention to any other input if we're already in setup mode
       if (inputString == "Cancel") {    // Cancel button in app was clicked
 #if (DEBUG)
         clearDisp();
@@ -935,7 +996,7 @@ void serialEvent() {
         short idx=0;
         short endpos=0;
         short i=0;
-        do {                              // parse the comma delimited String into an array of integers
+        do {                            // parse the comma delimited String into an array of integers
           endpos = inputString.indexOf(',',idx);
           if (endpos >= 0) {
             values[i++]=inputString.substring(idx,endpos).toInt();
@@ -946,8 +1007,8 @@ void serialEvent() {
           idx=endpos+1;
         } 
         while(endpos>=0 && i<7);        // stay in the loop until either we hit the end of the String or we found 7 comma separated values
-        if (i == 7 && endpos == -1) {     // if there were no more commas and we counted 7 of them, then we have a properly formatted message
-          R100 = values[0];               // These variable assignments aren't really needed, but they make the following code easier to read
+        if (i == 7 && endpos == -1) {   // if there were no more commas and we counted 7 of them, then we have a properly formatted message
+          R100 = values[0];             // These variable assignments aren't really needed, but they make the following code easier to read
           R10 = values[1]; 
           R1 = values[2]; 
           doseUnit = values[3];
