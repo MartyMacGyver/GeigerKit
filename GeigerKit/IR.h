@@ -25,7 +25,8 @@ volatile unsigned int IR_Cmnd = 0;      // returns IR command code received
 #define LEFT      52                  
 #define SLEEP     54                  
 #define INFO      58                    
-#define RECALL    59 // same as INFO for the RM-EZ4 remote         
+#define RECALL    59                   // same as INFO for the RM-EZ4 remote         
+#define TEST      68                   // "Test" button on NEC remote
 #define UP        116                  
 #define DOWN      117               
 #define KC_UP     124                  // used for RIGHT (these found on keychain menu select pad)   
@@ -47,6 +48,7 @@ volatile unsigned int IR_Cmnd = 0;      // returns IR command code received
 #define EXT1      56                   // finalizes the entry in the current menu option
 #define AVTV      40                   // decimal point
 #define RECALL    55                   // not implemented in key chain remote
+#define TEST      68                   // "Test" button on NEC remote - only here for compile
 #define RIGHT     46                   // increments the value already set for the current option
 #define LEFT      45                   // decrements the value already set for the current option
 #define SLEEP     34                   // curved arrows in key chain remote              

@@ -143,7 +143,6 @@ byte longPeriodIndex = 0;               // index to 10 minute array
 
 boolean dispOneMin = false;             // indicates 1 minute average is available
 boolean dispLongPeriod = false;         // indicates 10 minute average is available
-
 unsigned long nullPoint;                // zero point for tone mode
 unsigned int toneSensitivity;           // controls how rapidly pitch increases as a function of CPS
 boolean setNullPoint = false;           // when set true, causes the null point to be set to the displayed CPM

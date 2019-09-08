@@ -1,5 +1,6 @@
-/* GeigerKit_Default sketch (v.10.3C)    SHIPPING    21392 / 933 bytes in 1.0.5     bHogan 4/4/14
- * This sketch was written for the DIYGeigerCounter Kit.
+/* GeigerKit_Default sketch     SHIPPING    21796 / 877 bytes in 1.0.5               bHogan 6/6/14
+ * This sketch was written for the DIYGeigerCounter Kit sold here:
+ *      https://sites.google.com/site/diygeigercounter/home
  * DIY Geiger invests a lot time and resources in providing this open source code. Please support it 
  * by considering what knock-off versions of the hardware really are.
  * It requires the Arduino IDE rel. 1.0.0 or above to compile.
@@ -8,19 +9,14 @@
  * The features in this release are discribed on the DIYGeigerCounter web site:
  * http://sites.google.com/site/diygeigercounter/software-features
  * NEW THIS VERSION:
- * - switch between pri & sec ratios takes effect immediately
- * - Select button: at startup - resets to defults
- * - Select button: during alarm - silence for 30 sec
- * - removed #defines that were always true
- * - renamed I/O pin defines to match GK-Plus & better comment headers
- * - status LED like GK-Plus: 4x startup, 2x serial out, 1x IR key
- * - Tone adjust pot only read when necessary
- * - v10.3B added: allowed Select button to switch to Scaler mode if in alarm state
- * - v10.3C added: display "MUTE" to help setup keychain remotes + bugfix for 10 minute scaler "seconds left".
+ * - Uses NEC IR protocol for supplied remote. Sony or Phillips supported via #define
  * 
  * SETUP: See GeigerKit.h for pin maping
- * TODO:
- * - 
+ * TODO: - CHECK SRAM!
+ *
+ * THIS PROGRAM AND IT'S MEASUREMENTS IS NOT INTENDED TO GUIDE ACTIONS TO TAKE, OR NOT
+ * TO TAKE, REGARDING EXPOSURE TO RADIATION. THE GEIGER KIT AND IT'S SOFTWARE ARE FOR
+ * EDUCATIONAL PURPOSES ONLY. DO NOT RELY ON THEM IN HAZARDOUS SITUATIONS!
  *
  * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
@@ -29,17 +25,14 @@
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
  * PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * Do not remove information from this header.
- * 
- * THIS PROGRAM AND IT'S MEASUREMENTS IS NOT INTENDED TO GUIDE ACTIONS TO TAKE, OR NOT
- * TO TAKE, REGARDING EXPOSURE TO RADIATION. THE GEIGER KIT AND IT'S SOFTWARE ARE FOR
- * EDUCATIONAL PURPOSES ONLY. DO NOT RELY ON THEM IN HAZARDOUS SITUATIONS!
  */
 
 //----------------------------------------------------------------------------------------------+
 //                              User setup #defines
 //----------------------------------------------------------------------------------------------+
+#define IR_SONY        false            // use Sony IR protocol instead of NEC 
+#define IR_RC5         false            // use Phillips RC5 IR protocol instead of NEC 
 #define EIGHT_CHAR     false            // formats for 2x8 LCD when true
-#define IR_RC5         false            // use Phillips RC5 IR protocol instead of Sony 
 #define ANDROID        false            // include Android support if true
 #define TONE_POT_ADJ   false            // if true, use a pot attached to A0 to adjust tone instead of menu
 //////////////////////////// THESE DEFINES HAVE PRECOMPILER ISSUES ! ///////////////////////////
@@ -82,6 +75,10 @@ LiquidCrystal lcd(LCDPIN_RS, LCDPIN_EN, LCDPIN_D4,LCDPIN_D5, LCDPIN_D6, LCDPIN_D
 MeetAndroid Android;
 #endif
 
+#if IR_SONY && IR_RC5
+  #error "Only one alternate remote type can be defined!"
+#endif
+
 //----------------------------------------------------------------------------------------------+
 //                                     DEBUG Defines
 //----------------------------------------------------------------------------------------------+
@@ -112,6 +109,7 @@ void setup(){
 #endif
   pinMode(IR_PIN,INPUT);                // setup IR Input pin
   digitalWrite(IR_PIN, HIGH);
+
   PCintPort::attachInterrupt(IR_PIN, &IR_ISR, FALLING);  // add more attachInterrupt code as required
   Blink(LED_PIN,4);                     // show it's alive
 
@@ -165,7 +163,7 @@ void setup(){
 #else
   lcd.print(F("   GEIGER KIT"));        // display a simple banner
   lcd.setCursor(0,1);                   // set cursor on line 2
-  lcd.print(F("   Ver. 10.3C"));        // display the version
+  lcd.print(F("   Ver. 11.0"));        // display the version
 #endif
   delay (1500);                         // leave the banner up for a bit
   clearDisp();                          // clear the screen
