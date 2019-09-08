@@ -53,7 +53,7 @@ void PCF8591_DA(byte digOut){  // Digital into chip, Analog out
 
 void PCF8591_AD(){ // Analog into chip, Digital out 
   Wire.beginTransmission(ADDA_ADDR);  // Connect to PCF8591
-  Wire.write(0x44);                    // D/A on (for int osc), autoincrement, 4 seperate 
+  Wire.write(0x44);                    // D/A on (for int osc), auto increment, 4 separate 
   Wire.endTransmission(); 
   Wire.beginTransmission(ADDA_ADDR);  // connect to PCF8591 to read result
   Wire.requestFrom(ADDA_ADDR, 5);     // request 5 bytes from PCF8591
