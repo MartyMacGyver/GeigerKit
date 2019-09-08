@@ -1,3 +1,8 @@
+//----------------------------------------------------------------------------------------------+
+//                            IR Functions for Sony and Phillips RC5
+//----------------------------------------------------------------------------------------------+
+
+
 #if (!IR_RC5) // Sony Remote is used
 void IR_ISR(){ // This ISR is called for EACH pulse of the IR sensor
   static boolean IR_Header = false;     // flag set if IR header was received
@@ -26,7 +31,7 @@ void IR_ISR(){ // This ISR is called for EACH pulse of the IR sensor
       if (IR_Cmnd == 10) IR_Cmnd = 0;   // special case for zero key
     }
     IR_Avail = true;                    // indicate new command received
-    //digitalWrite(LED_PIN, HIGH);        // turn on LED to show you got something
+    digitalWrite(LED_PIN, HIGH);        // turn on LED to show you got something
     ir_bit_seq = 0;                     // clean up . . .
     ir_string = 0;
     ir_mask = 0;
@@ -42,8 +47,8 @@ void IR_ISR(){ // This ISR is called for EACH pulse of the IR sensor
   static unsigned int ir_bit_seq = 0;   // for bit number in ir_string
   static unsigned int ir_string = 0;    // stores bits received
   static byte RC5_telgr = 0;            // RC5 telegramm number
-  if(RC5_telgr == 0){                 // check for first telegramm only
-    while(digitalRead(IR_PIN)==1){    //skip this high period
+  if(RC5_telgr == 0){                   // check for first telegramm only
+    while(digitalRead(IR_PIN)==1){      //skip this high period
       delayMicroseconds(10);
     }
     ir_string = 0;                            //preset result string
@@ -58,7 +63,7 @@ void IR_ISR(){ // This ISR is called for EACH pulse of the IR sensor
     IR_Cmnd = ir_string & B111111;          // mask for the last 6 bits - the command
     if(!(ir_string && 4096)) IR_Cmnd = IR_Cmnd + 64 ; // bit 13 ist command extention in RC5
     IR_Avail = true;
-    //      digitalWrite(LED_PIN, HIGH);           // turn on LED to show you got something
+    digitalWrite(LED_PIN, HIGH);           // turn on LED to show you got something
     //      Serial.println(IR_Cmnd, DEC);        //debug gerard
     //      Serial.println(" ");                 //debug gerard
     RC5_telgr++ ;                          // telegramm counter

@@ -1,3 +1,8 @@
+//----------------------------------------------------------------------------------------------+
+//                               Functions for Analog Meter if defined
+//----------------------------------------------------------------------------------------------+
+
+
 #if (ANALOG_METER)  // THIS TAB NOT USED UNLESS ANALOG METER IS DEFINED
 void DoseToMeter(unsigned long value){
   // 50uA meter through 100K load = 5V full scale = 255 to D/A.

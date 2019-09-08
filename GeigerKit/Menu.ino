@@ -1,4 +1,6 @@
-///////////////////////////////// Menu and IR Functions Here ///////////////////////////////
+//----------------------------------------------------------------------------------------------+
+//                                    Menu Functions
+//----------------------------------------------------------------------------------------------+
 
 void Check_IR(){ // check if remote used and process the menu    
   // IR_Dev not used - only IR_Cmnd - accept any device (i.e. TV, VCR, etc.) command.
@@ -13,13 +15,13 @@ void Check_IR(){ // check if remote used and process the menu
   //detachInterrupt(0);                 // uncomment to not count while in menu
   do {
     if(!IR_Avail) continue;
-    switch (IR_Cmnd){                     // a case for each func key if desired
+    switch (IR_Cmnd){                   // a case for each func key if desired
     case 0 ... 9:                       // commands 0-9 converted to digits 0-9
       if (!inMenu) break;
       IRdigit = IR_Cmnd;
-      if (!directEntry) {                   // detect if this is the first digit being entered
-        directEntry=true;                   // set flag to tell us we're in direct entry mode
-        IRvalue = IRdigit;                  // if the default value is present, overwrite it
+      if (!directEntry) {               // detect if this is the first digit being entered
+        directEntry=true;               // set flag to tell us we're in direct entry mode
+        IRvalue = IRdigit;              // if the default value is present, overwrite it
       } 
       else if (decimalDiv == 0) {
         IRvalue = IRvalue * 10 + IRdigit;   // build the value
@@ -98,6 +100,11 @@ void Check_IR(){ // check if remote used and process the menu
       break;
 
     case MUTE:                            // Mute the sound
+      clearArea (11,1,5);                 
+      lcd.print(F(" MUTE"));              // first put MUTE on the disply to help set up keychain remotes
+      delay(500);
+      clearArea (11,1,5);
+
       togglePiezo(!PiezoOn);
       break;
 
@@ -112,11 +119,10 @@ void Check_IR(){ // check if remote used and process the menu
       lcd.print(F("Code "));
       lcd.print(IR_Cmnd,DEC);
       delay (1500);
-      //digitalWrite(LED_PIN, LOW);         // turn off LED
     } // end switch
 
     IR_Avail = false;                     // allow IR again
-    //digitalWrite(LED_PIN, LOW);           // turn off LED
+    digitalWrite(LED_PIN, LOW);           // turn off LED
     if (inMenu){                          // display the input . . .
       IRvalue = displayMenuScreen(MenuPos, IRvalue, menuChanged);
       if (menuChanged) {
@@ -201,15 +207,14 @@ float displayMenuScreen(byte menu, float curValue, boolean unchanged) {
     if (radLogger) lcd.print(F("Now ON"));  // toggle the radiation logger mode
     else lcd.print(F("Now OFF"));
     break;
-#if (TONE_MODE && !TONE_POT_ADJ)
   case MENU_TONE_SENS:
     if (unchanged) curValue = readParam(TONE_SENS_ADDR);                // if this screen was just entered, set the default value to the current value
     printValues((unsigned int)curValue,readParam(TONE_SENS_ADDR));      // print the values on line 2
     break;
-#endif
-  case MENU_BATT:                        // show the battery voltage
+
+  case MENU_BATT:                         // show the battery voltage
     lcd.setCursor(6,1);
-    lcd.print(readVcc()/1000. ,2);       // convert to Float, divide, and print 2 dec places
+    lcd.print(readVcc()/1000. ,2);        // convert to Float, divide, and print 2 dec places
     lcd.write('V');
     break;
   }
@@ -273,12 +278,10 @@ static void saveMenuSetting (byte menu, float curValue) {
   case MENU_RADLOGGER:  // parameter is saved when toggled
     toggleRadLogger();
     break;
-#if (TONE_MODE && !TONE_POT_ADJ)
   case MENU_TONE_SENS:
     if (curValue > TONE_MAX_SENS) curValue = TONE_MAX_SENS;
     writeParam(curValue, TONE_SENS_ADDR);
     break;
-#endif
   }
 }
 
@@ -333,12 +336,12 @@ static float incrementMenuSetting (byte menu, float curValue) {
   case MENU_RADLOGGER:
     toggleRadLogger();
     break;
-#if (TONE_MODE && !TONE_POT_ADJ)
+
   case MENU_TONE_SENS:
     if (curValue>=TONE_MAX_SENS) curValue = 0;
     else curValue++;
     break;
-#endif
+
   default:
     curValue++;
   }
@@ -396,12 +399,12 @@ static float decrementMenuSetting(byte menu, float curValue) {
   case MENU_RADLOGGER:
     toggleRadLogger();
     break;
-#if (TONE_MODE && !TONE_POT_ADJ)
+
   case MENU_TONE_SENS:
     if (curValue==0) curValue = TONE_MAX_SENS;
     else curValue--;
     break;
-#endif
+
   default:
     curValue--;
   }
@@ -445,12 +448,12 @@ void printTimeValue(unsigned int value) {
 void Get_Settings(){ // read setting out of EEPROM and set local variables
   // set defaults if EEPROM has not been used yet
   dispPeriod = readParam(DISP_PERIOD_ADDR);
-  if (dispPeriod == 0 || dispPeriod > DISP_PERIOD_MAX || RESET_ALL){      // default if > 1 hr
+  if (dispPeriod == 0 || dispPeriod > DISP_PERIOD_MAX){      // default if > 1 hr
     writeParam(DISP_PERIOD,DISP_PERIOD_ADDR);    // write EEPROM
     dispPeriod = DISP_PERIOD;
   }
 
-  if (readParam(SCALER_ADDR) > 1 || RESET_ALL) {
+  if (readParam(SCALER_ADDR) > 1) {
     writeParam(false,SCALER_ADDR);
   }
   //scalerParam = (boolean)readParam(SCALER_ADDR);
@@ -458,57 +461,51 @@ void Get_Settings(){ // read setting out of EEPROM and set local variables
   doseRatio = readCPMtoDoseRatio();
 
   LoggingPeriod = readParam(LOG_PERIOD_ADDR);
-  if (LoggingPeriod > LOGGING_PERIOD_MAX || LoggingPeriod == 1 || RESET_ALL){       // if zero, no logging - defult if > 24 hr
+  if (LoggingPeriod > LOGGING_PERIOD_MAX || LoggingPeriod == 1){       // if zero, no logging - defult if > 24 hr
     writeParam(LOGGING_PERIOD,LOG_PERIOD_ADDR);  // write EEPROM
     LoggingPeriod = LOGGING_PERIOD;
 
   }
   LoggingPeriod *= 1000;                         // convert seconds to ms
   AlarmPoint = readParam(ALARM_SET_ADDR);        // if zero - no alarm
-  if (AlarmPoint > MAX_ALARM || RESET_ALL){      // defult if > ALARM_MAX CPM
+  if (AlarmPoint > MAX_ALARM){                   // defult if > ALARM_MAX CPM
     writeParam(ALARM_POINT,ALARM_SET_ADDR);      // write EEPROM
     AlarmPoint = ALARM_POINT;
   }
 
   doseUnit = readParam(DOSE_UNIT_ADDR);          // get the saved value for the dose unit
-  if (doseUnit > MAX_UNIT || RESET_ALL) {
+  if (doseUnit > MAX_UNIT) {
     writeParam(0, DOSE_UNIT_ADDR);               // default to uSv
     doseUnit = 0;
   }
 
-#if (RESET_ALL)
-  writeParam(1,ALARM_UNIT_ADDR);
-#endif
   alarmInCPM = (boolean)readParam(ALARM_UNIT_ADDR);
 
-#if (RESET_ALL)
-  writeParam(1,PIEZO_SET_ADDR);
-#endif
   PiezoOn = (boolean)readParam(PIEZO_SET_ADDR);  // set the piezo to the last status
 
-  if (readParam(RADLOGGER_ADDR) > 1 || RESET_ALL) {
+  if (readParam(RADLOGGER_ADDR) > 1) {
     writeParam(false,RADLOGGER_ADDR);
   }
   radLogger = (boolean)readParam(RADLOGGER_ADDR);  // set the piezo to the last status
 
-#if (TONE_MODE && !TONE_POT_ADJ)
+
   toneSensitivity = readParam(TONE_SENS_ADDR);
-  if (toneSensitivity > TONE_MAX_SENS || RESET_ALL) {
+  if (toneSensitivity > TONE_MAX_SENS) {
     writeParam(TONE_SENSITIVITY, TONE_SENS_ADDR);
     toneSensitivity = TONE_SENSITIVITY;
   }
-#endif
+
 
   scalerPeriod = readParam(SCALER_PER_ADDR);     // get the saved value for the long period scaler
-  if (scalerPeriod < SCALER_PER_MIN || scalerPeriod > SCALER_PER_MAX || (60000 * scalerPeriod) % LONG_PER_MAX != 0 || RESET_ALL) { // discard the value if over the max or if not divisible by the number of elements in the array
+  if (scalerPeriod < SCALER_PER_MIN || scalerPeriod > SCALER_PER_MAX || (60000 * scalerPeriod) % LONG_PER_MAX != 0) { // discard the value if over the max or if not divisible by the number of elements in the array
     if (scalerPeriod != INFINITY) {
       writeParam(SCALER_PERIOD, SCALER_PER_ADDR);  // write default value
       scalerPeriod = SCALER_PERIOD;
     }
   }
 
-  bargraphMax = readParam(BARGRAPH_MAX_ADDR);    // get the CPM value that will put the bargraph at full scale - if not previously set, use the default
-  if (bargraphMax > BARGRAPH_SCALE_MAX || RESET_ALL) {
+  bargraphMax = readParam(BARGRAPH_MAX_ADDR);      // get the CPM value that will put the bargraph at full scale - if not previously set, use the default
+  if (bargraphMax > BARGRAPH_SCALE_MAX) {
     writeParam(FULL_SCALE, BARGRAPH_MAX_ADDR);
     bargraphMax = FULL_SCALE;
   }
@@ -560,18 +557,18 @@ static void toggleScaler() {
 
 static void toggleRadLogger() {
   radLogger = !radLogger;
-  writeParam(radLogger, RADLOGGER_ADDR);   // save the setting in EEPROM
+  writeParam(radLogger, RADLOGGER_ADDR);    // save the setting in EEPROM
 }
 
 
-static void togglePiezo(boolean bState){      // toggle piezo control pin
+static void togglePiezo(boolean bState){    // toggle piezo control pin
   PiezoOn = bState;
-  if (PiezoOn) {                        // if ON - set the pin to float 
-    pinMode(PIEZO_SIG_PIN, INPUT);      // set the pin to input to make it float (high Z)
+  if (PiezoOn) {                            // if ON - set the pin to float 
+    pinMode(SPKR_MUTE, INPUT);              // set the pin to input to make it float (high Z)
   } 
-  else {                              // it's OFF - set the pin to LOW
-    pinMode(PIEZO_SIG_PIN, OUTPUT);
-    digitalWrite(PIEZO_SIG_PIN,LOW);
+  else {                                // it's OFF - set the pin to LOW
+    pinMode(SPKR_MUTE, OUTPUT);
+    digitalWrite(SPKR_MUTE,LOW);
   }
   writeParam(PiezoOn, PIEZO_SET_ADDR);  // save the setting in EEPROM
 }
@@ -581,22 +578,19 @@ float readCPMtoDoseRatio() {
   float ratio;
   float defaultRatio;
 
-  if (digitalRead(TUBE_SEL)) {                  // determine if the tube select switch is open or closed
-    addr = PRI_RATIO_ADDR;                      // switch is open.  Use the primary tube ratio
+  if (digitalRead(TUBE_SEL)) {                // determine if the tube select switch is open or closed
+    addr = PRI_RATIO_ADDR;                    // switch is open.  Use the primary tube ratio
     defaultRatio = PRI_RATIO;
   } 
   else {                                      // switch is closed.  Use the secondary tube ratio
     addr = SEC_RATIO_ADDR;
     defaultRatio = SEC_RATIO;
   }
-#if (RESET_ALL)
-  writeFloatParam(PRI_RATIO,PRI_RATIO_ADDR);
-  writeFloatParam(SEC_RATIO,SEC_RATIO_ADDR);
-#endif
+
   ratio = readFloatParam(addr);
   if (ratio == 0 || ratio > DOSE_RATIO_MAX || isnan(ratio)) {  // defult if 0 or > 2000
-    writeFloatParam(defaultRatio,addr);         // write EEPROM
-    ratio = defaultRatio;                       // set the default
+    writeFloatParam(defaultRatio,addr);       // write EEPROM
+    ratio = defaultRatio;                     // set the default
   }
   return ratio;
 }
@@ -612,9 +606,20 @@ void writeCPMtoDoseRatio(float ratio) {
   resetLongPeriodCount();
 }
 
-
-
-
+void resetToFactoryDefaults() {  // Write all default values to EEPROM
+  writeParam(DISP_PERIOD, DISP_PERIOD_ADDR);
+  writeParam(LOGGING_PERIOD, LOG_PERIOD_ADDR);
+  writeParam(ALARM_POINT, ALARM_SET_ADDR);
+  writeParam(0, DOSE_UNIT_ADDR);
+  writeParam(1, ALARM_UNIT_ADDR);
+  writeParam(SCALER_PERIOD, SCALER_PER_ADDR);
+  writeParam(FULL_SCALE, BARGRAPH_MAX_ADDR);
+  writeParam(TONE_SENSITIVITY, TONE_SENS_ADDR);
+  writeParam(1, PIEZO_SET_ADDR);
+  writeParam(false, RADLOGGER_ADDR);
+  writeFloatParam(PRI_RATIO,PRI_RATIO_ADDR);
+  writeFloatParam(SEC_RATIO,SEC_RATIO_ADDR);
+}
 
 
 

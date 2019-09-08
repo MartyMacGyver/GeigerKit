@@ -1,3 +1,8 @@
+//----------------------------------------------------------------------------------------------+
+//                                 Defines for IR Remote Keys
+//----------------------------------------------------------------------------------------------+
+
+
 // vars for IR_ISR() (must be global)
 volatile boolean IR_Avail = false;      // flag set if IR has been read
 volatile unsigned int IR_Cmnd = 0;      // returns IR command code received
