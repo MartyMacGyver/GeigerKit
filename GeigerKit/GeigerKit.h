@@ -173,20 +173,20 @@ int  adc_key_val[5] ={
 #define MENU_TONE_SENS    9
 #define MENU_BATT         10
 
-prog_char string_0[] PROGMEM = "DISP PERIOD (MS)";   // "String 0" etc are strings to store - change to suit.
-prog_char string_1[] PROGMEM = "LOG PERIOD";
-prog_char string_2[] PROGMEM = "CPM->      RATIO";   // spaces will be filled with actual unit when displayed
-prog_char string_3[] PROGMEM = "ALARM THRESHOLD";
-prog_char string_4[] PROGMEM = "DOSE UNIT";
-prog_char string_5[] PROGMEM = "ALARM UNIT";
-prog_char string_6[] PROGMEM = "SCALER PER (MIN)";
-prog_char string_7[] PROGMEM = "BARGRAPH MAX CPM";
-prog_char string_8[] PROGMEM = "USE RADLOGGER?";
-prog_char string_9[] PROGMEM = "TONE SENSITIVITY";
-prog_char string_10[] PROGMEM = "REG. VOLTAGE";
+const char string_0[] PROGMEM = "DISP PERIOD (MS)";   // "String 0" etc are strings to store - change to suit.
+const char string_1[] PROGMEM = "LOG PERIOD";
+const char string_2[] PROGMEM = "CPM->      RATIO";   // spaces will be filled with actual unit when displayed
+const char string_3[] PROGMEM = "ALARM THRESHOLD";
+const char string_4[] PROGMEM = "DOSE UNIT";
+const char string_5[] PROGMEM = "ALARM UNIT";
+const char string_6[] PROGMEM = "SCALER PER (MIN)";
+const char string_7[] PROGMEM = "BARGRAPH MAX CPM";
+const char string_8[] PROGMEM = "USE RADLOGGER?";
+const char string_9[] PROGMEM = "TONE SENSITIVITY";
+const char string_10[] PROGMEM = "REG. VOLTAGE";
 
 
-PROGMEM const char *menu_table[] = 	// PROGMEM array to hold MENU strings
+const char * const menu_table[] PROGMEM =  	// PROGMEM array to hold MENU strings
 {   
   string_0,
   string_1,
@@ -204,26 +204,28 @@ PROGMEM const char *menu_table[] = 	// PROGMEM array to hold MENU strings
 #define MAX_UNIT  2
 // unit strings for LCD - use the LCD's built in char table to get mu char instead of u where applicable
 #if (DOGM_LCD) // TODO - Can't figure out how to print mu - it prints ¢
-prog_char unit_lcd_0[] PROGMEM = "uSv/h";
-prog_char unit_lcd_1[] PROGMEM = "u4R/h";
-prog_char unit_lcd_2[] PROGMEM = "mR/h";
+const char unit_lcd_0[] PROGMEM = "uSv/h";
+const char unit_lcd_1[] PROGMEM = "u4R/h";
+const char unit_lcd_2[] PROGMEM = "mR/h";
 #else
-prog_char unit_lcd_0[] PROGMEM = "\xe4Sv/h";
-prog_char unit_lcd_1[] PROGMEM = "\xe4R/h";
-prog_char unit_lcd_2[] PROGMEM = "mR/h";
+const char unit_lcd_0[] PROGMEM = "\xe4Sv/h";
+const char unit_lcd_1[] PROGMEM = "\xe4R/h";
+const char unit_lcd_2[] PROGMEM = "mR/h";
 #endif
-PROGMEM const char *unit_lcd_table[] = { // PROGMEM array to hold unit strings
+const char * const unit_lcd_table[] PROGMEM = // PROGMEM array to hold unit strings
+{
   unit_lcd_0,
   unit_lcd_1,
   unit_lcd_2
 };
 
 // unit strings used for logging - use u instead of mu since nobody interprets chars above 127 consistently
-prog_char unit_0[] PROGMEM = "uSv/h";
-prog_char unit_1[] PROGMEM = "uR/h";
-prog_char unit_2[] PROGMEM = "mR/h";
+const char unit_0[] PROGMEM = "uSv/h";
+const char unit_1[] PROGMEM = "uR/h";
+const char unit_2[] PROGMEM = "mR/h";
 
-PROGMEM const char *unit_table[] = { // PROGMEM array to hold unit strings
+const char * const unit_table[] PROGMEM = // PROGMEM array to hold unit strings
+{
   unit_0,
   unit_1,
   unit_2

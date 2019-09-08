@@ -1,4 +1,5 @@
-/* GeigerKit_Default sketch     SHIPPING    21796 / 877 bytes in 1.0.5               bHogan 6/6/14
+/* GeigerKit_Default sketch     SHIPPING    21222 / 1137 bytes in 1.6.5           bHogan 5/5/15
+ * Compiles under Arduino IDE v1.6.5, Board = Uno
  * This sketch was written for the DIYGeigerCounter Kit sold here:
  *      https://sites.google.com/site/diygeigercounter/home
  * DIY Geiger invests a lot time and resources in providing this open source code. Please support it 
@@ -9,22 +10,33 @@
  * The features in this release are discribed on the DIYGeigerCounter web site:
  * http://sites.google.com/site/diygeigercounter/software-features
  * NEW THIS VERSION:
- * - Uses NEC IR protocol for supplied remote. Sony or Phillips supported via #define
- * 
- * SETUP: See GeigerKit.h for pin maping
- * TODO: - CHECK SRAM!
+ * - updated PROGMEN syntax - compiles with 1.6.x of the IDE
+ * - No counts accumulate while in menu mode (caused alerts on monitoring sites)
+ * - Fix to Use Radlogger if 8 char display
+ * - proper display of CPM in the millions
+
  *
+ * SETUP: See GeigerKit.h for pin maping
+ * TODO: 
+ * - Make Tone Pot compatable (alla GK+) with menu and remove #define.
+ *
+ * LICENSE: Creative Commons NonCommercial-ShareAlike 4.0
+ * See http://creativecommons.org/licenses/by-nc-sa/4.0/ for a full definition. 
+ * Some key features are:
+ * - You are granted a royalty-free, non-exclusive, license to use and Share this Licensed Material
+ *   in whole or in part, for NonCommercial purposes only.
+ * - Every recipient of this software automatically receives the same rights.  
+ *   You may not impose any additional or different terms or conditions on this material.
+ * - If You Share this material (including in modified form), you must retain the identification 
+ *   of the DIY Geiger, this copyright notice, and indicate this Public License, 
+ * 
+ * This program is distributed WITHOUT ANY WARRANTY implied or otherwise, and with no warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Do not remove information from this header.
+ * 
  * THIS PROGRAM AND IT'S MEASUREMENTS IS NOT INTENDED TO GUIDE ACTIONS TO TAKE, OR NOT
  * TO TAKE, REGARDING EXPOSURE TO RADIATION. THE GEIGER KIT AND IT'S SOFTWARE ARE FOR
  * EDUCATIONAL PURPOSES ONLY. DO NOT RELY ON THEM IN HAZARDOUS SITUATIONS!
- *
- * This program is free software; you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software
- * Foundation; either version 2.1 of the License, or any later version.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- * PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- * Do not remove information from this header.
  */
 
 //----------------------------------------------------------------------------------------------+
@@ -76,7 +88,7 @@ MeetAndroid Android;
 #endif
 
 #if IR_SONY && IR_RC5
-  #error "Only one alternate remote type can be defined!"
+#error "Only one alternate remote type can be defined!"
 #endif
 
 //----------------------------------------------------------------------------------------------+
@@ -159,11 +171,11 @@ void setup(){
 #if (EIGHT_CHAR)
   lcd.print(F("GEIGER!"));              // display a simple banner
   lcd.setCursor(0,1);                   // set cursor on line 2
-  lcd.print(F(" v10.3"));               // display the version
+  lcd.print(F(" v11.1"));               // display the version
 #else
   lcd.print(F("   GEIGER KIT"));        // display a simple banner
   lcd.setCursor(0,1);                   // set cursor on line 2
-  lcd.print(F("   Ver. 11.0"));        // display the version
+  lcd.print(F("   Ver. 11.1"));        // display the version
 #endif
   delay (1500);                         // leave the banner up for a bit
   clearDisp();                          // clear the screen
@@ -454,6 +466,12 @@ void DispCounts(unsigned long dcnt){    // calc and display predicted CPM & uSv/
 
 void fastDisplay(unsigned long barCnt){ // quick response display on 2nd half of line 1
   barCnt = barCnt * 60;                 // scale CPS to CPM 
+
+  if (getOneSecCount() >16000){         // if CPM in millions nothing on fast display but the count
+    clearArea (11,0,5);
+    return;
+  }
+
 #if (!EIGHT_CHAR)    // NOT IN 2x8 LCD FORMAT
   if (!AlarmOn){
     clearArea (10,0,6);                 // move cursor to 9th col, 1st line for lcd bar
@@ -911,6 +929,7 @@ void GetEvent(){   // ISR triggered for each new event (count)
   longPeriodCnt++;
   fastCnt++;
 }
+
 
 
 
