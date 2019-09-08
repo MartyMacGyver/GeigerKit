@@ -169,9 +169,9 @@ void setup() {
   lcd.setCursor(0, 1);                  // set cursor on line 2
   lcd.print(F("12.0-MFF"));               // display the version
 #else
-  lcd.print(F("   GEIGER KIT"));        // display a simple banner
+  lcd.print(F("  GEIGER KIT"));        // display a simple banner
   lcd.setCursor(0, 1);                  // set cursor on line 2
-  lcd.print(F("   Ver. 12.0-MFF"));      // display the version
+  lcd.print(F("  Ver. 12.0-MFF"));      // display the version
 #endif
   delay (1500);                         // leave the banner up for a bit
   clearDisp();                          // clear the screen

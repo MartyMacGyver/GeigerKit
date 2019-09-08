@@ -486,7 +486,9 @@ void Get_Settings() { // read setting out of EEPROM and set local variables
 
   alarmInCPM = (boolean)readParam(ALARM_UNIT_ADDR);
 
-  PiezoOn = (boolean)readParam(PIEZO_SET_ADDR);  // set the piezo to the last status
+  //(boolean)readParam(PIEZO_SET_ADDR);  // set the piezo to the last status
+  PiezoOn = false;
+  togglePiezo(PiezoOn);
 
   if (readParam(RADLOGGER_ADDR) > 1) {
     writeParam(false, RADLOGGER_ADDR);
@@ -631,6 +633,3 @@ void resetToFactoryDefaults() {  // Write all default values to EEPROM
   writeFloatParam(PRI_RATIO, PRI_RATIO_ADDR);
   writeFloatParam(SEC_RATIO, SEC_RATIO_ADDR);
 }
-
-
-
