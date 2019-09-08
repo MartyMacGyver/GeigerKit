@@ -2,6 +2,10 @@
   ByteBuffer.cpp - A circular buffer implementation for Arduino
   Created by Sigurdur Orn, July 19, 2010.
   siggi@mit.edu
+  Updated by GreyGnome (aka Mike Schwager) Mon Apr  8 21:11:15 CDT 2013
+  	Fixed putString() so it reenables inputs correctly. In the if (length == capacity) section,
+	it was missing this line:
+			SREG = oldSREG; // Restore register; reenables interrupts
   Updated by GreyGnome (aka Mike Schwager) Thu Feb 23 17:25:14 CST 2012
   	added the putString() method and the fillError variable.
 	added the checkError() and resetError() methods.  The checkError() method resets the fillError variable
@@ -9,6 +13,8 @@
 	added the ByteBuffer(unsigned int buf_size) constructor.
 	added the init() method, and had the constructor call it automagically.
 	Also made the capacity, position, length, and fillError variables volatile, for safe use by interrupts.
+	Mon Dec  3 07:55:04 CST 2012
+	Added the putHex() and putDec() methods.
  */
  
 #include "ByteBuffer.h"
@@ -25,6 +31,7 @@ void ByteBuffer::init(unsigned int buf_length){
 	fillError=false;
 }
 
+// Arduino 1.0: free() doesn't free.  :-(  This is a no-op as of 11/2012.
 void ByteBuffer::deAllocate(){
 	free(data);
 }
@@ -80,6 +87,10 @@ uint8_t ByteBuffer::put(byte in){
 }
 
 
+uint8_t ByteBuffer::putString(const char *in) {
+	return(putString((char *) in));
+}
+
 uint8_t ByteBuffer::putString(char *in){
 	uint8_t count=0;
 	char *inString;
@@ -89,6 +100,7 @@ uint8_t ByteBuffer::putString(char *in){
 	while(length <= capacity){
 		if (length == capacity) {
 			fillError=true;
+			SREG = oldSREG; // Restore register; reenables interrupts
 			return count;
 		}
 		// save data byte at end of buffer
@@ -128,6 +140,7 @@ uint8_t ByteBuffer::putInFront(byte in){
 	return 0;
 }
 
+// Returns 0 if length of data is 0.
 byte ByteBuffer::get(){
 	uint8_t oldSREG = SREG; cli();
 	byte b = 0;
@@ -185,6 +198,45 @@ int ByteBuffer::getIntFromBack(){
 	pointer[0] = getFromBack();
 	pointer[1] = getFromBack();
 	return ret;
+}
+
+void ByteBuffer::putHex(uint8_t theByte) {
+	put('0'); put('x');
+    uint8_t hinybble=theByte>>4;
+    uint8_t lonybble=theByte & 0x0F;
+	uint8_t addend=0;
+	if (hinybble >= 0x0a) addend=7;
+	put(hinybble+48+addend);
+	if (lonybble >= 0x0a) addend=7;
+	else addend=0;
+	put(lonybble+48+addend);
+}
+
+void ByteBuffer::putDec(uint8_t number) {
+  uint8_t hundreds=0;
+  uint8_t tens=0;
+  uint8_t ones=0;
+  uint8_t tmp=number;
+
+  while (tmp >= 100 ) {
+    hundreds++;
+    tmp-=100;
+  }
+  while (tmp >= 10 ) {
+    tens++;
+    tmp-=10;
+  }
+  ones=tmp;
+  hundreds+=48; tens+=48; ones+=48;
+  if (number >= 100) { put(hundreds); }
+  if (number >= 10) {  put(tens); }
+  put(ones);
+}
+
+void ByteBuffer::putDec(int8_t number) {
+	uint8_t absNumber=abs(number);
+	if (number < 0) put('-');
+	putDec(absNumber);
 }
 
 //
