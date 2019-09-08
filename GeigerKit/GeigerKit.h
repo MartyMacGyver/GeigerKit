@@ -54,7 +54,7 @@
 #define AVGBGRAD_uSv         0.17       // average background in uSv/h (30 CPM if ratio is 175)
 #define AVBGRAD_uR           17.0       // average background radiation level in uR/h
 #define AVBGRAD_mR           0.017      // average background radiation level in mR/h
-#define INFINITY             65534      // if scalerPeriod is set to this value, it will just do a cumulative count forever
+#define INFINITY_COUNT       65534      // if scalerPeriod is set to this value, it will just do a cumulative count forever
 #define TONE_POT_MODE        60000      // if this value is stored in TONE_SENS_ADDR, use the potentiometer to adjust tone sensitivity
 
 
@@ -354,5 +354,3 @@ byte bar_5[8] = {
   B00000
 };
 #endif
-
-

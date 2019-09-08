@@ -167,11 +167,11 @@ void setup() {
 #if (EIGHT_CHAR)
   lcd.print(F("GEIGER!"));              // display a simple banner
   lcd.setCursor(0, 1);                  // set cursor on line 2
-  lcd.print(F(" v11.1"));               // display the version
+  lcd.print(F("12.0-MFF"));               // display the version
 #else
   lcd.print(F("   GEIGER KIT"));        // display a simple banner
   lcd.setCursor(0, 1);                  // set cursor on line 2
-  lcd.print(F("   Ver. 12.0"));        // display the version
+  lcd.print(F("   Ver. 12.0-MFF"));      // display the version
 #endif
   delay (1500);                         // leave the banner up for a bit
   clearDisp();                          // clear the screen
@@ -344,7 +344,7 @@ void loop() {
     oneMinCountStart = millis();        // reset the period time
   }
 
-  if (scalerDispUsed && millis() >= longPeriodStart + (scalerPeriod * 60000) / LONG_PER_MAX && scalerPeriod < INFINITY) {
+  if (scalerDispUsed && millis() >= longPeriodStart + (scalerPeriod * 60000) / LONG_PER_MAX && scalerPeriod < INFINITY_COUNT) {
     longPeriodCount(longPeriodCnt);
     longPeriodCnt = 0;
     longPeriodStart = millis();
@@ -513,8 +513,8 @@ void DispRunCounts() { // create the screen that shows the running counts
 #else
   lcd.print(F(" 1M       /"));          // display 1 & 10 min lits
   lcd.setCursor(0, 1);
-  if (scalerPeriod == INFINITY) {
-    lcd.print("  \xf3");                // if scalerPeriod is set to INFINITY, write the symbol for infinity to the LCD
+  if (scalerPeriod == INFINITY_COUNT) {
+    lcd.print("  \xf3");                // if scalerPeriod is set to INFINITY_COUNT, write the symbol for infinity to the LCD
   }
   else {
     if (scalerPeriod < 10) lcd.write(' ');
@@ -565,7 +565,7 @@ void DispRunCounts() { // create the screen that shows the running counts
     printDoseRate(temp_uSv, 1, 1);      // display long period dose rate, right justified
   }
 #endif
-  if (!dispLongPeriod && scalerPeriod < INFINITY) {
+  if (!dispLongPeriod && scalerPeriod < INFINITY_COUNT) {
 #if (EIGHT_CHAR)    // FOR 2x8 LCD FORMAT
     lcd.setCursor(0, 1);
     lcd.write('C');                     // overwrite 10 minute icon with C if counting
@@ -662,7 +662,7 @@ void setAlarm() { // RECURSIVE FUNCTION to change alarm set point when button re
 static void printBar(unsigned long value, unsigned long max, byte blocks) {
   // NEW STYLE - Adapted from zxcounter by Andrei K. - https://github.com/andkom/zxcounter
   // modified to remove floating point math
-  byte bar_value, full_blocks, prtl_blocks;
+  byte bar_value, full_blocks, prtl_blocks = 0;
 
   if (value > max) {
     full_blocks = blocks;
@@ -925,10 +925,3 @@ void GetEvent() {  // ISR triggered for each new event (count)
   longPeriodCnt++;
   fastCnt++;
 }
-
-
-
-
-
-
-
