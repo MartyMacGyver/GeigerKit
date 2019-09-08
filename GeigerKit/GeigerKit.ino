@@ -1,4 +1,4 @@
-/* GeigerKit_Default sketch (v.10.0)                                           bHogan 3/15/13
+/* GeigerKit_Default sketch (v.10.1)    SHIPPING!       24,860 bytes              bHogan 3/31/13
  * This sketch was written for the DIYGeigerCounter Kit.
  * DIY Geiger invests a lot time and resources in providing this open source code, 
  * please support it by not purchasing knock-off versions of the hardware.
@@ -8,16 +8,7 @@
  * The features in this release are discribed on the DIYGeigerCounter web site:
  * http://sites.google.com/site/diygeigercounter/software-features
  *
- * SETUP: (Any 2x16 Hitachi HD44780 compatible LCD)
- *     +5V LCD Vdd pin 2             >>>     Gnd LCD Vss pin 1, and R/W pin 5
- *     LCD RS pin 4 to D3            >>>     LCD Enable pin 6 to D4
- *     LCD D4 pin 11 to D5           >>>     LCD D5 pin 12 to D6
- *     LCD D6 pin 13 to D7           >>>     LCD D7 pin 14 to D8
- *     LCD LEDA pin 15 to ~1K to +5  >>>     LCD LEDK pin 16 to GND
- *     10K pot: - ends to +5V and Gnd, wiper to LCD VO pin (pin 3)
- * *INT from Geiger circuit is connected to PIN 2 and triggered as FALLING.
- * PIN 9 - jumper to GND if secondary conversion ratio is desired
- * PIN 10 - use button for alt display and to set alarm. (see site)
+ * SETUP: See GeigerKit.h for pin maping
  *
  * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
@@ -43,6 +34,7 @@
 #define AUTO_PRECISION true             // if true, decimals are dropped from the displayed dose rate as it gets larger (logged data is unaffected)
 #define TONE_MODE      true             // enables tone mode (like a metal detector) - requires speaker to be attached to pin A4
 #define OLD_BARGRAPH   false            // if set to true, use the bargraph from v9 and earlier
+#define TONE_POT_ADJ   false            // if set to true, use a potentiometer attached to A0 to adjust tone instead of menu
 
 //  This shouldn't normally be needed, but useful if no IR module is present and something else has already written to the EEPROM
 #define RESET_ALL      false            // use this to reset all settings back to default
@@ -70,7 +62,7 @@
 
 // instantiate the library and pass pins for (RS, Enable, D4, D5, D6, D7)
 LiquidCrystal lcd(LCDPIN_RS, LCDPIN_EN, LCDPIN_D4,
-                  LCDPIN_D5, LCDPIN_D6, LCDPIN_D7);    // default layout for the Geiger board 
+LCDPIN_D5, LCDPIN_D6, LCDPIN_D7);    // default layout for the Geiger board 
 
 #if (ANDROID)
 MeetAndroid Android;
@@ -91,6 +83,9 @@ void setup(){
 #if (TONE_MODE)
   pinMode(NULL_BTN_PIN,INPUT);          // null point set button
   digitalWrite(NULL_BTN_PIN, HIGH);     // turn on the internal pullup
+#if TONE_POT_ADJ
+  pinMode(TONE_ADJ_PIN,INPUT);
+#endif
 #endif
 
 #if (IR_SUPPORT)
@@ -130,7 +125,7 @@ void setup(){
 #else
   lcd.print(F("   GEIGER KIT"));        // display a simple banner
   lcd.setCursor(0,1);                   // set cursor on line 2
-  lcd.print(F("    Ver. 10"));          // display the version
+  lcd.print(F("    Ver. 10.1"));          // display the version
 #endif
   delay (1500);                         // leave the banner up for a bit
   clearDisp();                          // clear the screen
@@ -172,13 +167,14 @@ void setup(){
 #if (!EIGHT_CHAR)
     if (alarmInCPM) {
       lcd.print(F(" CPM"));
-    } else {
-
+    } 
+    else {
       lcd.write(' ');
       lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));  // show dose unit (uSv/h, uR/h, or mR/h)
     }
 #endif
-  } else lcd.print(F("Off")); 
+  } 
+  else lcd.print(F("Off")); 
 
   unsigned long timeIn = millis();      // you have 3 sec to push button or move on
   while (millis() < timeIn + 3000) { 
@@ -196,15 +192,19 @@ void setup(){
 #else
   lcd.print(F("CPM? "));                // display beginning "CPM"
 #endif
-  Serial.print(F("CPM,"));              // print header for CSV output to serial
-  serialprint_P((const char *)pgm_read_word(&(unit_table[doseUnit])));  // print dose unit (uSv/h, uR/h, or mR/h) to serial
-  Serial.print(F(",Vcc\r\n"));
+  if (!radLogger){                        // no header if Radiation Logger is used
+    Serial.print(F("CPM,"));              // print header for CSV output to serial
+    serialprint_P((const char *)pgm_read_word(&(unit_table[doseUnit])));  // print dose unit (uSv/h, uR/h, or mR/h) to serial
+    Serial.print(F(",Vcc\r\n"));
+  }
 #if (TONE_MODE)
   if (doseUnit == 0) {
     globalBgRadAvg = AVGBGRAD_uSv;      // global average background radiation in uSv/h
-  } else if (doseUnit == 1) {
+  } 
+  else if (doseUnit == 1) {
     globalBgRadAvg = AVBGRAD_uR;        // global average background radiation in uR/h
-  } else {
+  } 
+  else {
     globalBgRadAvg = AVBGRAD_mR;        // global average background radiation in mR/h
   }
   nullPoint = 2 * doseRatio * globalBgRadAvg;  // set initial tone zero point to twice the global avg background radiation CPM
@@ -226,7 +226,10 @@ void loop(){
   static boolean scalerDispOn = false;     // true when SW_1 on, and in continous count mode
   static unsigned long lastButtonTime;  // counter for pressing the button to quickly
   static boolean scalerDispUsed = false;
-  
+#if (TONE_POT_ADJ)
+  static unsigned int lastPotVal = 0;
+  unsigned int potVal;
+#endif
 #if (RESET_ALL)
   do {
     clearDisp();
@@ -239,7 +242,8 @@ void loop(){
     lcd.setCursor(0,1);                   // set cursor on line 2
     lcd.print(F("FALSE & REUPLOAD"));
     delay(3000);
-  }while (1);                             // loop for eternity
+  }
+  while (1);                             // loop for eternity
 #endif
   //5 lines below for self check - you should see very close to 360 CPM
 #if (SELF_TEST)
@@ -271,20 +275,33 @@ void loop(){
       }
       DispRunCounts();
     }
-  } else if (scalerDispOn) {
+  } 
+  else if (scalerDispOn) {
     clearDisp();
     scalerDispOn = false;
     DispCounts(dispCnt);         // start main display immediately
   }
-    
+
 #if (TONE_MODE)
   if (setNullPoint || (readButton(NULL_BTN_PIN)== LOW && millis() >= lastButtonTime + 500)){  // start/stop alt display mode if button pin is low
     lastButtonTime = millis();          // reset the period time
     setNullPoint = false;               // reset the flag
     nullPoint = 1.2 * currentDispCPM;   // set the nullPoint to 120% of the displayed CPM
   }
+#if (TONE_POT_ADJ)
+  potVal = analogRead(TONE_ADJ_PIN - 14);
+  if (potVal > lastPotVal + POT_HYSTERESIS || potVal < lastPotVal - POT_HYSTERESIS) {        // don't keep re-adjusting the toneSensitivity due to normal fluctuations in reading
+    toneSensitivity = round(((float)potVal*(float)potVal)/(1046529.0/(float)TONE_MAX_SENS)); // square the value and divide by 1023^2 scaled to TONE_MAX_SENS
+    lastPotVal=potVal;
+  }
+#if (DEBUG)
+  lcd.setCursor(12,1);
+  lcd.print(toneSensitivity);
+  lcd.print("   ");
 #endif
-  
+#endif
+#endif
+
   if (millis() >= fastCountStart + 1000/ONE_SEC_MAX){ // refresh bargraph and alarm if in main display
     oneSecCount(fastCnt);
     fastCnt=0;                         // reset counts
@@ -314,7 +331,8 @@ void loop(){
     // the scaler count screen will display if we're in scaler mode
     if (scalerDispOn) {
       DispRunCounts();                  // display the scaler mode screen
-    } else {
+    } 
+    else {
       DispCounts(dispCnt);              // period is over - display counts
     }
     dispCnt = 0;                        // reset counter
@@ -378,7 +396,7 @@ void DispCounts(unsigned long dcnt){    // calc and display predicted CPM & uSv/
 #endif
 
 #if (TONE_MODE)
-    currentDispCPM = dispCPM;           // save the current CPM display in case the user sets the null point
+  currentDispCPM = dispCPM;           // save the current CPM display in case the user sets the null point
 #endif
 
   if (AlarmPoint > 0) {
@@ -391,7 +409,8 @@ void DispCounts(unsigned long dcnt){    // calc and display predicted CPM & uSv/
         digitalWrite(ALARM_PIN, LOW);   // turn off alarm (set alarm pin to Gnd)
         AlarmOn = false;  
       }
-    } else {
+    } 
+    else {
       if (uSv > AlarmPoint)  {          // Alarm Set to Units
         AlarmOn = true;
         digitalWrite(ALARM_PIN, HIGH);  // turn on alarm (set alarm pin to Vcc) 
@@ -433,14 +452,14 @@ void DispRunCounts(){ // create the screen that shows the running counts
   float tempSum;                        // for summing running count
   float temp_uSv;                       // for converting CPM to uSv/h for running average
   unsigned int secLeft;
-  
+
   clearDisp();
 
   // 1 MINUTE DISPLAY LINE . . .
   tempSum = getOneMinCount();
   temp_uSv = tempSum / doseRatio;       // calc uSv/h
   if (!dispOneMin) {
-     tempSum += oneMinCnt;
+    tempSum += oneMinCnt;
   }
 #if (TONE_MODE)
   currentDispCPM = tempSum;             // save the currently displayed CPM in case the user sets the null point
@@ -455,12 +474,13 @@ void DispRunCounts(){ // create the screen that shows the running counts
   lcd.setCursor(0,1);
   if (scalerPeriod == INFINITY) {
     lcd.print("  \xf3");                // if scalerPeriod is set to INFINITY, write the symbol for infinity to the lcd
-  } else {
+  } 
+  else {
     if (scalerPeriod < 10) lcd.write(' ');
     lcd.print(scalerPeriod,DEC);
     lcd.print(F("M       /"));
   }
-  
+
   lcd.setCursor(4, 0);
   lcd.print(tempSum,0);                 // display 1 minute CPM or running count
   if (dispOneMin) {
@@ -475,7 +495,8 @@ void DispRunCounts(){ // create the screen that shows the running counts
     secLeft = 60 - (oneMinuteIndex*60/ONE_MIN_MAX);
     if (secLeft < 10) {
       lcd.setCursor(14, 0);
-    } else {
+    } 
+    else {
       lcd.setCursor(13, 0);
     }
     lcd.print(secLeft,DEC); // show seconds left
@@ -486,7 +507,8 @@ void DispRunCounts(){ // create the screen that shows the running counts
   tempSum = getLongPeriodCount();
   if (dispLongPeriod) {
     tempSum /= (float)scalerPeriod;   // sum over 10 minutes so divide by that when CPM is displayed
-  } else {
+  } 
+  else {
     tempSum += longPeriodCnt; // period hasn't finished yet add the current counts to the total
   }
   temp_uSv = tempSum / doseRatio;
@@ -512,12 +534,15 @@ void DispRunCounts(){ // create the screen that shows the running counts
       lcd.setCursor(13, 1);
       lcd.print(secLeft/60,DEC); // show minutes left
       lcd.write('m'); 
-    } else {
+    } 
+    else {
       if (secLeft < 10) {
         lcd.setCursor(14, 1);
-      } else if (secLeft < 100) {
+      } 
+      else if (secLeft < 100) {
         lcd.setCursor(13, 1);
-      } else {
+      } 
+      else {
         lcd.setCursor(12, 1);
       }
       lcd.print(secLeft,DEC);
@@ -545,9 +570,9 @@ unsigned long getOneMinCount() {
 
 unsigned long getLongPeriodCount() {
   unsigned long tempSum = 0;
-    for (int i = 0; i <= LONG_PER_MAX-1; i++){ // sum up long period counts
-      tempSum = tempSum + longPeriod[i];
-    }
+  for (int i = 0; i <= LONG_PER_MAX-1; i++){ // sum up long period counts
+    tempSum = tempSum + longPeriod[i];
+  }
   return tempSum;
 }
 
@@ -568,11 +593,13 @@ void setAlarm(){ // RECURSIVE FUNCTION to change alarm set point when button rep
         lcd.write(' ');
         if (alarmInCPM) {  // determine whether alarm is being set in CPM or in dose units
           lcd.print(F("CPM"));
-        } else {
+        } 
+        else {
           lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));  // show unit (uSv/h, uR/h, mR/h)
         }
         delay(500);
-      } else {
+      } 
+      else {
         lcd.print(F("Alarm Off")); 
         delay(3000);
       }
@@ -587,21 +614,22 @@ static void printBar(unsigned long value, unsigned long max, byte blocks) {
   // Adapted from zxcounter by Andrei K. - https://github.com/andkom/zxcounter
   // modified to remove floating point math
   byte bar_value, full_blocks, prtl_blocks;
-  
+
   if (value > max) {
     full_blocks = blocks;
-  } else {
+  } 
+  else {
     bar_value = (blocks * 5 * value) / max;
     full_blocks = bar_value / 5;
     prtl_blocks = bar_value % 5;
   }
-  
+
   for (byte i = 0; i < full_blocks; i++) {
     lcd.write(5);
   }
-  
+
   lcd.write(prtl_blocks);
-  
+
   for (byte i = full_blocks + 1; i < blocks; i++) {
     lcd.write(byte(0));
   }
@@ -636,12 +664,13 @@ void logCount(unsigned long lcnt){ // unlike logging sketch, just outputs to ser
 
   // Print to serial in a format that might be used by Excel
   Serial.print(logCPM,DEC);
-  Serial.write(',');    
-  Serial.print(uSvLogged,4);
-  Serial.write(','); // comma delimited
-  Serial.print(readVcc()/1000. ,2);     // print as volts with 2 dec. places
+  if (!radLogger){                      // only CPM if Radiation Logger is used                    // only CPM if Radiation Logger is used
+    Serial.write(',');    
+    Serial.print(uSvLogged,4);
+    Serial.write(','); // comma delimited
+    Serial.print(readVcc()/1000. ,2);   // print as volts with 2 dec. places
+  }
   Serial.print(F("\r\n"));
-  //Serial.write('V');                  // removed for better graphing
   Blink(LED_PIN,2);                     // show it logged
 }
 
@@ -711,14 +740,15 @@ static void CPStoTone (unsigned long counts){
   if (counts*60 <= nullPoint || !PiezoOn) {
     noTone(TONE_PIN); // no counts, no tone 
     return;
-  } else {
+  } 
+  else {
     counts -= nullPoint/60;             // remove nullpoint from count
   }
   if (toneSensitivity > 0) {
     counts = 1 + ((counts+counts*counts)/(unsigned long)toneSensitivity);      // no real math behind this formula - obtained by experimentation; seems to produce better results than a straight linear function
   }
   scaleMax = bargraphMax;            // use the full scale setting for the bargraph as the max for the tone range
-#if (DEBUG)
+#if (DEBUG && !TONE_POT_ADJ)
   clearArea (11,1,6);
   lcd.print(lmap(counts,1,scaleMax,TONE_MIN_FREQ,TONE_MAX_FREQ));
   lcd.print("Hz");
@@ -743,7 +773,7 @@ static void clearArea (byte col, byte line, byte nspaces){
 }
 
 void printDoseRate (float rate, byte line, boolean rightJustify) {  // prints the uSv/hour rate on the right side of the LCD
-/* If AUTO_PRECISION is true, prints 2 decimal places if uSv is less than 10, 1 decimal place if 
+  /* If AUTO_PRECISION is true, prints 2 decimal places if uSv is less than 10, 1 decimal place if 
    less than 100, and only whole numbers if the uSv rate is 100 or more.  This allows the LCD to 
    clearly display dose rates up to 99,999uSv/hr without causing any display weirdness.*/
   byte startpos;
@@ -755,10 +785,12 @@ void printDoseRate (float rate, byte line, boolean rightJustify) {  // prints th
     startpos=13;
     precision=2;
 #if (AUTO_PRECISION)
-  } else if (rate < 100) {              // display 1 decimal place if less than 100
+  } 
+  else if (rate < 100) {              // display 1 decimal place if less than 100
     startpos=14;
     precision=1;
-  } else {                              // display only whole numbers if 100 or more
+  } 
+  else {                              // display only whole numbers if 100 or more
     precision=0;
     startpos=16;
   }
@@ -800,11 +832,12 @@ int AvailRam(){
 byte getLength(unsigned long number){
   byte length = 0;
   unsigned long t = 1;
-  
+
   do {
     length++;
     t*=10;
-  } while(t <= number);
+  } 
+  while(t <= number);
   return length;
 }
 
@@ -824,19 +857,19 @@ void androidInput(byte flag, byte numOfValues){ // automatically called when inp
 #endif
 
 void lcdprint_P(const char *text) {  // print a string from progmem to the LCD
-/* Usage: lcdprint_P(pstring) or lcdprint_P(pstring_table[5].  If the string 
-          table is stored in progmem and the index is a variable, the syntax is
-          lcdprint_P((const char *)pgm_read_word(&(pstring_table[index])))*/
+  /* Usage: lcdprint_P(pstring) or lcdprint_P(pstring_table[5].  If the string 
+   table is stored in progmem and the index is a variable, the syntax is
+   lcdprint_P((const char *)pgm_read_word(&(pstring_table[index])))*/
   while (pgm_read_byte(text) != 0x00)
-     lcd.write(pgm_read_byte(text++));
+    lcd.write(pgm_read_byte(text++));
 }
 
 static void serialprint_P(const char *text) {  // print a string from progmem to the serial object
-/* Usage: serialprint_P(pstring) or serialprint_P(pstring_table[5].  If the string 
-          table is stored in progmem and the index is a variable, the syntax is
-          serialprint_P((const char *)pgm_read_word(&(pstring_table[index])))*/
+  /* Usage: serialprint_P(pstring) or serialprint_P(pstring_table[5].  If the string 
+   table is stored in progmem and the index is a variable, the syntax is
+   serialprint_P((const char *)pgm_read_word(&(pstring_table[index])))*/
   while (pgm_read_byte(text) != 0x00)
-     Serial.write(pgm_read_byte(text++));
+    Serial.write(pgm_read_byte(text++));
 }
 
 ///////////////////////////////// ISR ///////////////////////////////////
@@ -854,11 +887,11 @@ String inputString = "";         // a string to hold incoming data
 void serialEvent() {
   static boolean stringComplete = false;  // whether the string is complete
   static boolean inSetup = false;
-  
+
   unsigned int values[7];
   unsigned int R100, R10, R1;
   unsigned int Alarm_Multi, Alarm_Unit;
-  
+
   while (Serial.available()) {
     // get the new byte:
     char inChar = (char)Serial.read(); 
@@ -870,7 +903,7 @@ void serialEvent() {
       stringComplete = true;
     }
   }
-  
+
   if (stringComplete) {
     if (inputString == "Setup") {       // App sends "Setup" to initiate setup mode
       inSetup=true;                     // set flag so we know we're in setup mode
@@ -888,7 +921,8 @@ void serialEvent() {
       Serial.print(!alarmInCPM + 1);
       Serial.write(',');
       Serial.println(AlarmPoint);
-    } else if (inSetup == true) {       // only pay attention to any other input if we're already in setup mode
+    } 
+    else if (inSetup == true) {       // only pay attention to any other input if we're already in setup mode
       if (inputString == "Cancel") {    // Cancel button in app was clicked
 #if (DEBUG)
         clearDisp();
@@ -896,7 +930,8 @@ void serialEvent() {
         delay(1000);
 #endif
         inSetup=false;                  // exit setup mode without any changes
-      } else {  // program must have sent us a comma-delimited set of values
+      } 
+      else {  // program must have sent us a comma-delimited set of values
         short idx=0;
         short endpos=0;
         short i=0;
@@ -904,11 +939,13 @@ void serialEvent() {
           endpos = inputString.indexOf(',',idx);
           if (endpos >= 0) {
             values[i++]=inputString.substring(idx,endpos).toInt();
-          } else {
+          } 
+          else {
             values[i++]=inputString.substring(idx).toInt();
           }
           idx=endpos+1;
-        } while(endpos>=0 && i<7);        // stay in the loop until either we hit the end of the String or we found 7 comma separated values
+        } 
+        while(endpos>=0 && i<7);        // stay in the loop until either we hit the end of the String or we found 7 comma separated values
         if (i == 7 && endpos == -1) {     // if there were no more commas and we counted 7 of them, then we have a properly formatted message
           R100 = values[0];               // These variable assignments aren't really needed, but they make the following code easier to read
           R10 = values[1]; 
@@ -917,59 +954,60 @@ void serialEvent() {
           Alarm_Multi = values[4];
           Alarm_Unit = values[5];
           AlarmPoint = values[6];
-  
+
           // Save new conversion ratio - sent as three ints that need to be re-assembled into a float
           doseRatio = R100;
           doseRatio = doseRatio * 100.0 + R10;
           doseRatio = doseRatio * 100.0 + R1;
           doseRatio = doseRatio / 100.0;
           writeCPMtoDoseRatio(doseRatio);
-  #if (DEBUG)
+#if (DEBUG)
           clearDisp();
           lcd.print(F("New ratio:"));
           lcd.setCursor(0,1);
           lcd.print(doseRatio,2);
           delay(1000);
-  #endif
-  
+#endif
+
           // Save other info
           // App returns 1 - uSv/H, 2 - uR/H, 3 - mR/H.  Convert to 0-based count so it's easier to use with an array
           doseUnit-=1;
           writeParam(doseUnit, DOSE_UNIT_ADDR);
-  #if (DEBUG)
+#if (DEBUG)
           clearDisp();
           lcd.print(F("New unit:"));
           lcd.setCursor(0,1);
           lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
           delay(1000);
-  #endif
-          
+#endif
+
           // App returns the alarm set point along with a multiplier - just convert to an int
           AlarmPoint *= Alarm_Multi;
           writeParam(AlarmPoint, ALARM_SET_ADDR);
-  #if (DEBUG)
+#if (DEBUG)
           clearDisp();
           lcd.print(F("New alarm point:"));
           lcd.setCursor(0,1);
           lcd.print(AlarmPoint);
           delay(1000);
-  #endif
-  
+#endif
+
           // App returns 2 for display units, 1 for CPM - convert to boolean instead
           alarmInCPM = Alarm_Unit % 2;
           writeParam(alarmInCPM, ALARM_UNIT_ADDR);
-  #if (DEBUG)
+#if (DEBUG)
           clearDisp();
           lcd.print(F("New alarm unit:"));
           lcd.setCursor(0,1);
           if (alarmInCPM) {
             lcd.print(F("CPM"));
-          } else {
+          } 
+          else {
             lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
           }
           inSetup=false;
           delay(1000);
-  #endif
+#endif
         }
       }
     }
@@ -978,4 +1016,6 @@ void serialEvent() {
   }
 }
 #endif
+
+
 

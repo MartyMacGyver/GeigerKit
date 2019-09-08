@@ -14,101 +14,104 @@ void Check_IR(){ // check if remote used and process the menu
   do {
     if(!IR_Avail) continue;
     switch (IR_Cmnd){                     // a case for each func key if desired
-      case 0 ... 9:                       // commands 0-9 converted to digits 0-9
-        if (!inMenu) break;
-        IRdigit = IR_Cmnd;
-        if (!directEntry) {                   // detect if this is the first digit being entered
-          directEntry=true;                   // set flag to tell us we're in direct entry mode
-          IRvalue = IRdigit;                  // if the default value is present, overwrite it
-        } else if (decimalDiv == 0) {
-          IRvalue = IRvalue * 10 + IRdigit;   // build the value
-        } else if (decimalDiv < 100) {
-          decimalDiv *= 10;
-          IRvalue = IRvalue + (float)IRdigit/(float)decimalDiv;   // build the value
-        }
-        break;
-   
-      case POWER:                           // begin / end menu mode
-        inMenu = !inMenu;                   // toggle
-        if (inMenu) {
-#if (TONE_MODE)
-          noTone(TONE_PIN);                 // silence is golden while in the menu
-#endif
-          menuChanged=true;
-        } else {                            // do this stuff when leaving menu
-          Get_Settings();                   // start using the new settings
-        }
-        break;
-      
-      case DOWN:                            // NEXT MENU
-      case C_DOWN:
-        if (!inMenu) break;
-        MenuPos++;
-        if (MenuPos > MAX_MENU) MenuPos = 0;
-        menuChanged=true;
-        break;
+    case 0 ... 9:                       // commands 0-9 converted to digits 0-9
+      if (!inMenu) break;
+      IRdigit = IR_Cmnd;
+      if (!directEntry) {                   // detect if this is the first digit being entered
+        directEntry=true;                   // set flag to tell us we're in direct entry mode
+        IRvalue = IRdigit;                  // if the default value is present, overwrite it
+      } 
+      else if (decimalDiv == 0) {
+        IRvalue = IRvalue * 10 + IRdigit;   // build the value
+      } 
+      else if (decimalDiv < 100) {
+        decimalDiv *= 10;
+        IRvalue = IRvalue + (float)IRdigit/(float)decimalDiv;   // build the value
+      }
+      break;
 
-      case UP:                              // PREVIOUS MENU
-      case C_UP:
-        if (!inMenu) break;
-        MenuPos--;
-        if (MenuPos > MAX_MENU) MenuPos = MAX_MENU;
-        menuChanged=true;
-        break;
-
-      case AVTV:                            // USED FOR DECIMAL POINT
-      case DCML:
-        if (MenuPos == MENU_RATIO) decimalDiv = 1;
-        else decimalDiv = 0;
-        break;
-        
-      case ENTER:                           // TERMINATE THE ENTRY
-      case ENTER2:
-      case EXT1:
-      case PLAY:
-      case KC_MENU:
-        if (!inMenu) {
+    case POWER:                           // begin / end menu mode
+      inMenu = !inMenu;                   // toggle
+      if (inMenu) {
 #if (TONE_MODE)
-          setNullPoint = true;
+        noTone(TONE_PIN);                 // silence is golden while in the menu
 #endif
-          break;
-        }
-        saveMenuSetting(MenuPos, IRvalue);
-        decimalDiv = directEntry = false;
+        menuChanged=true;
+      } 
+      else {                            // do this stuff when leaving menu
+        Get_Settings();                   // start using the new settings
+      }
+      break;
+
+    case DOWN:                            // NEXT MENU
+    case C_DOWN:
+      if (!inMenu) break;
+      MenuPos++;
+      if (MenuPos > MAX_MENU) MenuPos = 0;
+      menuChanged=true;
+      break;
+
+    case UP:                              // PREVIOUS MENU
+    case C_UP:
+      if (!inMenu) break;
+      MenuPos--;
+      if (MenuPos > MAX_MENU) MenuPos = MAX_MENU;
+      menuChanged=true;
+      break;
+
+    case AVTV:                            // USED FOR DECIMAL POINT
+    case DCML:
+      if (MenuPos == MENU_RATIO) decimalDiv = 1;
+      else decimalDiv = 0;
+      break;
+
+    case ENTER:                           // TERMINATE THE ENTRY
+    case ENTER2:
+    case EXT1:
+    case PLAY:
+    case KC_MENU:
+      if (!inMenu) {
+#if (TONE_MODE)
+        setNullPoint = true;
+#endif
         break;
-    
-      case RIGHT:                           // INCREMENT THE ENTRY
-      case V_UP:
-      case KC_UP:
-        if (!inMenu) break;
-        IRvalue = incrementMenuSetting(MenuPos, IRvalue);
-        directEntry=false;
-        break;
-    
-      case LEFT:                            // DECREMENT THE ENTRY
-      case V_DOWN:
-      case KC_DOWN:
-        if (!inMenu) break;
-        IRvalue = decrementMenuSetting(MenuPos, IRvalue);
-        directEntry=false;
-        break;
-    
-      case MUTE:                            // Mute the sound
-        togglePiezo(!PiezoOn);
-        break;
-    
-      case INFO:                            // --/- key i\on keychain
-      case RECALL:                          // same for RM-EZ4
-        toggleScaler();
-        break;
-        
-      default:                              // DISPLAY CODE FOR ANY UNDEFINED KEY
-        if (!inMenu) break;
-        clearArea (0,1,16);
-        lcd.print(F("Code "));
-        lcd.print(IR_Cmnd,DEC);
-        delay (1500);
-        //digitalWrite(LED_PIN, LOW);         // turn off LED
+      }
+      saveMenuSetting(MenuPos, IRvalue);
+      decimalDiv = directEntry = false;
+      break;
+
+    case RIGHT:                           // INCREMENT THE ENTRY
+    case V_UP:
+    case KC_UP:
+      if (!inMenu) break;
+      IRvalue = incrementMenuSetting(MenuPos, IRvalue);
+      directEntry=false;
+      break;
+
+    case LEFT:                            // DECREMENT THE ENTRY
+    case V_DOWN:
+    case KC_DOWN:
+      if (!inMenu) break;
+      IRvalue = decrementMenuSetting(MenuPos, IRvalue);
+      directEntry=false;
+      break;
+
+    case MUTE:                            // Mute the sound
+      togglePiezo(!PiezoOn);
+      break;
+
+    case INFO:                            // --/- key i\on keychain
+    case RECALL:                          // same for RM-EZ4
+      toggleScaler();
+      break;
+
+    default:                              // DISPLAY CODE FOR ANY UNDEFINED KEY
+      if (!inMenu) break;
+      clearArea (0,1,16);
+      lcd.print(F("Code "));
+      lcd.print(IR_Cmnd,DEC);
+      delay (1500);
+      //digitalWrite(LED_PIN, LOW);         // turn off LED
     } // end switch
 
     IR_Avail = false;                     // allow IR again
@@ -119,7 +122,8 @@ void Check_IR(){ // check if remote used and process the menu
         decimalDiv = directEntry = menuChanged = false;
       }
     }
-  }while(inMenu);
+  }
+  while(inMenu);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -132,196 +136,272 @@ float displayMenuScreen(byte menu, float curValue, boolean unchanged) {
   lcd.setCursor(0,1);                   // set cursor on line 2
   /// DEBUG   lcd.print(menu_items[menu]);
   switch(menu) {
-    case MENU_RATIO:
-      lcd.setCursor(5,0);
-      lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit]))); // print proper display unit
-      lcd.setCursor(0,1);
-      if (unchanged) curValue = readCPMtoDoseRatio();
-      lcd.print(curValue);
-      lcd.setCursor(7,1);
-      lcd.print("Now ");
-      lcd.print(readCPMtoDoseRatio());
-      break;
-    case MENU_DOSE_UNIT:
-      if (unchanged) curValue = doseUnit;
-      curValue = (unsigned int)curValue % (MAX_UNIT + 1);
-      lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[(unsigned int)curValue])));
-      lcd.setCursor(7,1);
-      lcd.print(F("Now "));
+  case MENU_DISP_PER:
+    if (unchanged) curValue = readParam(DISP_PERIOD_ADDR);                // if this screen was just entered, set the default value to the current value
+    printValues((unsigned int)curValue,readParam(DISP_PERIOD_ADDR));      // print the values on line 2
+    break;
+  case MENU_LOG_PER:
+    if (unchanged) curValue = readParam(LOG_PERIOD_ADDR);                // if this screen was just entered, set the default value to the current value
+    printTimeValue((unsigned int)curValue);
+    lcd.setCursor(7,1);
+    lcd.print("Now ");
+    printTimeValue(readParam(LOG_PERIOD_ADDR));
+    break;
+  case MENU_RATIO:
+    lcd.setCursor(5,0);
+    lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit]))); // print proper display unit
+    lcd.setCursor(0,1);
+    if (unchanged) curValue = readCPMtoDoseRatio();
+    lcd.print(curValue);
+    lcd.setCursor(7,1);
+    lcd.print("Now ");
+    lcd.print(readCPMtoDoseRatio());
+    break;
+  case MENU_ALARM:
+    if (unchanged) curValue = readParam(ALARM_SET_ADDR);                // if this screen was just entered, set the default value to the current value
+    printValues((unsigned int)curValue,readParam(ALARM_SET_ADDR));      // print the values on line 2
+    break;  
+  case MENU_DOSE_UNIT:
+    if (unchanged) curValue = doseUnit;
+    curValue = (unsigned int)curValue % (MAX_UNIT + 1);
+    lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[(unsigned int)curValue])));
+    lcd.setCursor(7,1);
+    lcd.print(F("Now "));
+    lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
+    break;
+  case MENU_ALARM_UNIT:
+    if (unchanged) curValue = alarmInCPM;
+    curValue = (unsigned int)curValue % 2;
+    if (curValue) {
+      lcd.print(F("CPM"));
+    } 
+    else {
       lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
-      break;
-    case MENU_ALARM_UNIT:
-      if (unchanged) curValue = alarmInCPM;
-      curValue = (unsigned int)curValue % 2;
-      if (curValue) {
-        lcd.print(F("CPM"));
-      } else {
-        lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
-      }
-      lcd.setCursor(7,1);
-      lcd.print(F("Now "));
-      if (alarmInCPM) {
-        lcd.print(F("CPM"));
-      } else {
-        lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
-      }
-      break;
-    case MENU_BATT:                        // show the battery voltage
-      lcd.setCursor(6,1);
-      lcd.print(readVcc()/1000. ,2);       // convert to Float, divide, and print 2 dec places
-      lcd.write('V');
-      break;
-    default:
-      if (unchanged) curValue = readParam(menu*2);     // if this screen was just entered, set the default value to the current value
-      printValues((unsigned int)curValue,readParam(menu*2));           // print the values on line 2
+    }
+    lcd.setCursor(7,1);
+    lcd.print(F("Now "));
+    if (alarmInCPM) {
+      lcd.print(F("CPM"));
+    } 
+    else {
+      lcdprint_P((const char *)pgm_read_word(&(unit_lcd_table[doseUnit])));
+    }
+    break;
+  case MENU_SCALER_PER:
+    if (unchanged) curValue = readParam(SCALER_PER_ADDR);                // if this screen was just entered, set the default value to the current value
+    printValues((unsigned int)curValue,readParam(SCALER_PER_ADDR));      // print the values on line 2
+    break;  
+  case MENU_BARGRAPH_MAX:
+    if (unchanged) curValue = readParam(BARGRAPH_MAX_ADDR);                // if this screen was just entered, set the default value to the current value
+    printValues((unsigned int)curValue,readParam(BARGRAPH_MAX_ADDR));      // print the values on line 2
+    break;  
+  case MENU_RADLOGGER:
+    lcd.setCursor(7,1);
+    if (radLogger) lcd.print(F("Now ON"));  // toggle the radiation logger mode
+    else lcd.print(F("Now OFF"));
+    break;
+#if (TONE_MODE && !TONE_POT_ADJ)
+  case MENU_TONE_SENS:
+    if (unchanged) curValue = readParam(TONE_SENS_ADDR);                // if this screen was just entered, set the default value to the current value
+    printValues((unsigned int)curValue,readParam(TONE_SENS_ADDR));      // print the values on line 2
+    break;
+#endif
+  case MENU_BATT:                        // show the battery voltage
+    lcd.setCursor(6,1);
+    lcd.print(readVcc()/1000. ,2);       // convert to Float, divide, and print 2 dec places
+    lcd.write('V');
+    break;
   }
   return curValue;
 }
 
 static void saveMenuSetting (byte menu, float curValue) {
   switch(menu) {
-    case MENU_DISP_PER:
-      if (curValue > DISP_PERIOD_MAX) curValue = DISP_PERIOD_MAX;
-      if (curValue < DISP_PERIOD_MIN) curValue = DISP_PERIOD_MIN;
-      writeParam(curValue, DISP_PERIOD_ADDR);
-      break;
-    case MENU_MIN_LOG:
-      if (curValue > LOGGING_PERIOD_MAX) curValue = LOGGING_PERIOD_MAX;
-      writeParam(curValue, LOG_PERIOD_ADDR);
-      break;
-    case MENU_RATIO:
-      if (curValue > DOSE_RATIO_MAX) curValue = DOSE_RATIO_MAX;
-      writeCPMtoDoseRatio(curValue);
-      break;
-    case MENU_ALARM:
-      if (curValue > MAX_ALARM) curValue = MAX_ALARM;
-      writeParam(curValue, ALARM_SET_ADDR);
-      break;
-    case MENU_DOSE_UNIT:
-      doseUnit = curValue;
-      writeParam(curValue, DOSE_UNIT_ADDR);
-      break;
-    case MENU_ALARM_UNIT:
-      alarmInCPM=!alarmInCPM;
-      writeParam(alarmInCPM,ALARM_UNIT_ADDR);
-      break;
-    case MENU_SCALER_PER:
-      if (curValue >= SCALER_PER_MAX && curValue != INFINITY) curValue = SCALER_PER_MAX;
-      else if (curValue <= SCALER_PER_MIN) curValue = SCALER_PER_MIN;
-      else if (curValue != INFINITY) {
-        while (curValue < SCALER_PER_MAX && (60000 * (unsigned int)curValue) % LONG_PER_MAX != 0) {  // have to make sure that the interval is evenly divisible by the number of elements in the array (if LONG_PER_MAX is left at 120, this is always false and optimized out by the compiler)
-          curValue++;
-        }
+  case MENU_DISP_PER:
+    if (curValue > DISP_PERIOD_MAX) curValue = DISP_PERIOD_MAX;
+    if (curValue < DISP_PERIOD_MIN) curValue = DISP_PERIOD_MIN;
+    writeParam(curValue, DISP_PERIOD_ADDR);
+    break;
+  case MENU_LOG_PER:
+    if (curValue > LOGGING_PERIOD_MAX) curValue = LOGGING_PERIOD_MAX;
+    else if (curValue < 60 && curValue > 0) {
+      while (curValue < LOGGING_PERIOD_MAX && 60 % (unsigned int)curValue != 0) {  // make sure the we have a period that evenly multiplies to 60 seconds
+        curValue++;
       }
-      writeParam(curValue, SCALER_PER_ADDR);
-      resetLongPeriodCount();        // reset the long period count because we changed the period
-      break;
-    case MENU_BARGRAPH_MAX:
-      if (curValue > BARGRAPH_SCALE_MAX) curValue = BARGRAPH_SCALE_MAX;
-      else if (curValue < BARGRAPH_SCALE_MIN) curValue = BARGRAPH_SCALE_MIN;
-      writeParam(curValue, BARGRAPH_MAX_ADDR);
-      break;
-#if (TONE_MODE)
-    case MENU_TONE_SENS:
-      if (curValue > TONE_MAX_SENS) curValue = TONE_MAX_SENS;
-      writeParam(curValue, TONE_SENS_ADDR);
-      break;
+    } 
+    else if (curValue > 60) {
+      while (curValue < LOGGING_PERIOD_MAX && (unsigned int)curValue % 60 != 0) {  // use a multiple of 60 seconds if we're over 60 secs
+        curValue++;
+      }
+    }
+    writeParam(curValue, LOG_PERIOD_ADDR);
+    break;
+  case MENU_RATIO:
+    if (curValue > DOSE_RATIO_MAX) curValue = DOSE_RATIO_MAX;
+    writeCPMtoDoseRatio(curValue);
+    break;
+  case MENU_ALARM:
+    if (curValue > MAX_ALARM) curValue = MAX_ALARM;
+    writeParam(curValue, ALARM_SET_ADDR);
+    break;
+  case MENU_DOSE_UNIT:
+    doseUnit = curValue;
+    writeParam(curValue, DOSE_UNIT_ADDR);
+    break;
+  case MENU_ALARM_UNIT:
+    alarmInCPM=!alarmInCPM;
+    writeParam(alarmInCPM,ALARM_UNIT_ADDR);
+    break;
+  case MENU_SCALER_PER:
+    if (curValue >= SCALER_PER_MAX && curValue != INFINITY) curValue = SCALER_PER_MAX;
+    else if (curValue <= SCALER_PER_MIN) curValue = SCALER_PER_MIN;
+    else if (curValue != INFINITY) {
+      while (curValue < SCALER_PER_MAX && (60000 * (unsigned int)curValue) % LONG_PER_MAX != 0) {  // have to make sure that the interval is evenly divisible by the number of elements in the array (if LONG_PER_MAX is left at 120, this is always false and optimized out by the compiler)
+        curValue++;
+      }
+    }
+    writeParam(curValue, SCALER_PER_ADDR);
+    resetLongPeriodCount();        // reset the long period count because we changed the period
+    break;
+  case MENU_BARGRAPH_MAX:
+    if (curValue > BARGRAPH_SCALE_MAX) curValue = BARGRAPH_SCALE_MAX;
+    else if (curValue < BARGRAPH_SCALE_MIN) curValue = BARGRAPH_SCALE_MIN;
+    writeParam(curValue, BARGRAPH_MAX_ADDR);
+    break;
+  case MENU_RADLOGGER:  // parameter is saved when toggled
+    toggleRadLogger();
+    break;
+#if (TONE_MODE && !TONE_POT_ADJ)
+  case MENU_TONE_SENS:
+    if (curValue > TONE_MAX_SENS) curValue = TONE_MAX_SENS;
+    writeParam(curValue, TONE_SENS_ADDR);
+    break;
 #endif
-    default:
-      writeParam(curValue, menu*2);
   }
 }
 
 static float incrementMenuSetting (byte menu, float curValue) {
   switch(menu) {
-    case MENU_DISP_PER:
-      if (curValue>=DISP_PERIOD_MAX) curValue = DISP_PERIOD_MIN;
-      else curValue++;
-      break;
-    case MENU_MIN_LOG:
-      if (curValue>=LOGGING_PERIOD_MAX) curValue = 0;
-      else curValue++;
-      break;
-    case MENU_RATIO:
-      if (curValue>=DOSE_RATIO_MAX) curValue = 0;
-      else curValue++;
-      break;
-    case MENU_ALARM:
-      if (curValue>=MAX_ALARM) curValue = 0;
-      else curValue++;
-      break;
-    case MENU_DOSE_UNIT:
-      if (curValue>=MAX_UNIT) curValue = 0;
-      else curValue++;
-      break;
-    case MENU_SCALER_PER:
-      if (curValue==SCALER_PER_MAX) curValue = INFINITY;
-      else if (curValue==INFINITY) curValue = SCALER_PER_MIN;
-      else {
-        do {
-          curValue++;
-        } while (curValue < SCALER_PER_MAX && (60000 * (unsigned int)curValue) % LONG_PER_MAX != 0);  // have to make sure that the interval is evenly divisible by the number of elements in the array (if LONG_PER_MAX is left at 120, this is always false and optimized out by the compiler)
-      }
-      break;
-    case MENU_BARGRAPH_MAX:
-      if (curValue>=BARGRAPH_SCALE_MAX) curValue = BARGRAPH_SCALE_MIN;
-      else curValue++;
-      break;
-#if (TONE_MODE)
-    case MENU_TONE_SENS:
-      if (curValue>=TONE_MAX_SENS) curValue = 0;
-      else curValue++;
-      break;
+  case MENU_DISP_PER:
+    if (curValue>=DISP_PERIOD_MAX) curValue = DISP_PERIOD_MIN;
+    else curValue++;
+    break;
+  case MENU_LOG_PER:
+    if (curValue>=LOGGING_PERIOD_MAX) curValue = 0;
+    else if (curValue == 0) curValue = 2;
+    else if (curValue < 60) {
+      do {
+        curValue++;
+      } 
+      while (curValue < LOGGING_PERIOD_MAX && 60 % (unsigned int)curValue != 0);
+    } 
+    else if (curValue >= 60) {
+      do {
+        curValue++;
+      } 
+      while (curValue < LOGGING_PERIOD_MAX && (unsigned int)curValue % 60 != 0); // use a multiple of 60 seconds if we're over 60 secs
+    }
+    break;
+  case MENU_RATIO:
+    if (curValue>=DOSE_RATIO_MAX) curValue = 0;
+    else curValue++;
+    break;
+  case MENU_ALARM:
+    if (curValue>=MAX_ALARM) curValue = 0;
+    else curValue++;
+    break;
+  case MENU_DOSE_UNIT:
+    if (curValue>=MAX_UNIT) curValue = 0;
+    else curValue++;
+    break;
+  case MENU_SCALER_PER:
+    if (curValue==SCALER_PER_MAX) curValue = INFINITY;
+    else if (curValue==INFINITY) curValue = SCALER_PER_MIN;
+    else {
+      do {
+        curValue++;
+      } 
+      while (curValue < SCALER_PER_MAX && (60000 * (unsigned int)curValue) % LONG_PER_MAX != 0);  // have to make sure that the interval is evenly divisible by the number of elements in the array (if LONG_PER_MAX is left at 120, this is always false and optimized out by the compiler)
+    }
+    break;
+  case MENU_BARGRAPH_MAX:
+    if (curValue>=BARGRAPH_SCALE_MAX) curValue = BARGRAPH_SCALE_MIN;
+    else curValue++;
+    break;
+  case MENU_RADLOGGER:
+    toggleRadLogger();
+    break;
+#if (TONE_MODE && !TONE_POT_ADJ)
+  case MENU_TONE_SENS:
+    if (curValue>=TONE_MAX_SENS) curValue = 0;
+    else curValue++;
+    break;
 #endif
-    default:
-      curValue++;
+  default:
+    curValue++;
   }
   return curValue;
 }
 
 static float decrementMenuSetting(byte menu, float curValue) {
   switch(menu) {
-    case MENU_DISP_PER:
-      if (curValue<=DISP_PERIOD_MIN) curValue = DISP_PERIOD_MAX;
-      else curValue--;
-      break;
-    case MENU_MIN_LOG:
-      if (curValue==0) curValue = LOGGING_PERIOD_MAX;
-      else curValue--;
-      break;
-    case MENU_RATIO:
-      if (curValue==0) curValue = DOSE_RATIO_MAX;
-      else curValue--;
-      break;
-    case MENU_ALARM:
-      if (curValue==0) curValue = MAX_ALARM;
-      else curValue--;
-      break;
-    case MENU_DOSE_UNIT:
-      if (curValue==0) curValue = MAX_UNIT;
-      else curValue--;
-      break;
-    case MENU_SCALER_PER:
-      if (curValue==SCALER_PER_MIN) curValue = INFINITY;
-      else if (curValue==INFINITY) curValue = SCALER_PER_MAX;
-      else {
-        do {
-          curValue--;
-        } while ((60000 * (unsigned int)curValue) % LONG_PER_MAX != 0);  // have to make sure that the interval is evenly divisible by the number of elements in the array (if LONG_PER_MAX is left at 120, this is always false and optimized out by the compiler)
-      }
-      break;
-    case MENU_BARGRAPH_MAX:
-      if (curValue==BARGRAPH_SCALE_MIN) curValue = BARGRAPH_SCALE_MAX;
-      else curValue--;
-      break;
-#if (TONE_MODE)
-    case MENU_TONE_SENS:
-      if (curValue==0) curValue = TONE_MAX_SENS;
-      else curValue--;
-      break;
+  case MENU_DISP_PER:
+    if (curValue<=DISP_PERIOD_MIN) curValue = DISP_PERIOD_MAX;
+    else curValue--;
+    break;
+  case MENU_LOG_PER:
+    if (curValue==0) curValue = LOGGING_PERIOD_MAX;
+    else if (curValue==2) curValue = 0;
+    else if (curValue <= 60) {
+      do {
+        curValue--;
+      } 
+      while (curValue < LOGGING_PERIOD_MAX && 60 % (unsigned int)curValue != 0);
+    } 
+    else if (curValue > 60) {
+      do {
+        curValue--;
+      } 
+      while (curValue < LOGGING_PERIOD_MAX && (unsigned int)curValue % 60 != 0); // use a multiple of 60 seconds if we're over 60 secs
+    }
+    break;
+  case MENU_RATIO:
+    if (curValue==0) curValue = DOSE_RATIO_MAX;
+    else curValue--;
+    break;
+  case MENU_ALARM:
+    if (curValue==0) curValue = MAX_ALARM;
+    else curValue--;
+    break;
+  case MENU_DOSE_UNIT:
+    if (curValue==0) curValue = MAX_UNIT;
+    else curValue--;
+    break;
+  case MENU_SCALER_PER:
+    if (curValue==SCALER_PER_MIN) curValue = INFINITY;
+    else if (curValue==INFINITY) curValue = SCALER_PER_MAX;
+    else {
+      do {
+        curValue--;
+      } 
+      while ((60000 * (unsigned int)curValue) % LONG_PER_MAX != 0);  // have to make sure that the interval is evenly divisible by the number of elements in the array (if LONG_PER_MAX is left at 120, this is always false and optimized out by the compiler)
+    }
+    break;
+  case MENU_BARGRAPH_MAX:
+    if (curValue==BARGRAPH_SCALE_MIN) curValue = BARGRAPH_SCALE_MAX;
+    else curValue--;
+    break;
+  case MENU_RADLOGGER:
+    toggleRadLogger();
+    break;
+#if (TONE_MODE && !TONE_POT_ADJ)
+  case MENU_TONE_SENS:
+    if (curValue==0) curValue = TONE_MAX_SENS;
+    else curValue--;
+    break;
 #endif
-    default:
-      curValue--;
+  default:
+    curValue--;
   }
   return curValue;
 }
@@ -329,18 +409,33 @@ static float decrementMenuSetting(byte menu, float curValue) {
 static void printValues(unsigned int curVal, unsigned int newVal) {
   if (curVal==INFINITY) {
     lcd.write('\xf3');
-  } else {
+  } 
+  else {
     lcd.print(curVal,DEC);
   }
   lcd.setCursor(7,1);
   lcd.print("Now ");
   if (newVal==INFINITY) {
     lcd.write('\xf3');
-  } else {
+  } 
+  else {
     lcd.print(newVal);
   }
 }
 
+void printTimeValue(unsigned int value) {
+  if (value >= 60) {
+    lcd.print(value/60,DEC);
+    lcd.write('m');
+  } 
+  else if (value > 0) {
+    lcd.print(value,DEC);
+    lcd.write('s');
+  } 
+  else {
+    lcd.print(F("OFF"));
+  }
+}
 ///////////////////////////////////////////////////////////////////////
 // Functions to read settings from / write settings to EEPROM
 ///////////////////////////////////////////////////////////////////////
@@ -361,14 +456,14 @@ void Get_Settings(){ // read setting out of EEPROM and set local variables
   doseRatio = readCPMtoDoseRatio();
 
   LoggingPeriod = readParam(LOG_PERIOD_ADDR);
-  if (LoggingPeriod > LOGGING_PERIOD_MAX || RESET_ALL){       // if zero, no logging - defult if > 24 hr
+  if (LoggingPeriod > LOGGING_PERIOD_MAX || LoggingPeriod == 1 || RESET_ALL){       // if zero, no logging - defult if > 24 hr
     writeParam(LOGGING_PERIOD,LOG_PERIOD_ADDR);  // write EEPROM
     LoggingPeriod = LOGGING_PERIOD;
-  }
-  LoggingPeriod *= 60000;
 
+  }
+  LoggingPeriod *= 1000;                         // convert seconds to ms
   AlarmPoint = readParam(ALARM_SET_ADDR);        // if zero - no alarm
-  if (AlarmPoint > MAX_ALARM || RESET_ALL){                   // defult if > ALARM_MAX CPM
+  if (AlarmPoint > MAX_ALARM || RESET_ALL){      // defult if > ALARM_MAX CPM
     writeParam(ALARM_POINT,ALARM_SET_ADDR);      // write EEPROM
     AlarmPoint = ALARM_POINT;
   }
@@ -389,7 +484,12 @@ void Get_Settings(){ // read setting out of EEPROM and set local variables
 #endif
   PiezoOn = (boolean)readParam(PIEZO_SET_ADDR);  // set the piezo to the last status
 
-#if (TONE_MODE)
+  if (readParam(RADLOGGER_ADDR) > 1 || RESET_ALL) {
+    writeParam(false,RADLOGGER_ADDR);
+  }
+  radLogger = (boolean)readParam(RADLOGGER_ADDR);  // set the piezo to the last status
+
+#if (TONE_MODE && !TONE_POT_ADJ)
   toneSensitivity = readParam(TONE_SENS_ADDR);
   if (toneSensitivity > TONE_MAX_SENS || RESET_ALL) {
     writeParam(TONE_SENSITIVITY, TONE_SENS_ADDR);
@@ -410,7 +510,7 @@ void Get_Settings(){ // read setting out of EEPROM and set local variables
     writeParam(FULL_SCALE, BARGRAPH_MAX_ADDR);
     bargraphMax = FULL_SCALE;
   }
-  
+
   dispPeriodStart = 0;                  // start timing over when returning to loop
   logPeriodStart = dispPeriodStart;     // start logging timer
 }
@@ -456,11 +556,18 @@ static void toggleScaler() {
   writeParam(scalerParam, SCALER_ADDR);   // save the setting in EEPROM
 }
 
+static void toggleRadLogger() {
+  radLogger = !radLogger;
+  writeParam(radLogger, RADLOGGER_ADDR);   // save the setting in EEPROM
+}
+
+
 static void togglePiezo(boolean bState){      // toggle piezo control pin
   PiezoOn = bState;
   if (PiezoOn) {                        // if ON - set the pin to float 
     pinMode(PIEZO_SIG_PIN, INPUT);      // set the pin to input to make it float (high Z)
-  } else {                              // it's OFF - set the pin to LOW
+  } 
+  else {                              // it's OFF - set the pin to LOW
     pinMode(PIEZO_SIG_PIN, OUTPUT);
     digitalWrite(PIEZO_SIG_PIN,LOW);
   }
@@ -471,11 +578,12 @@ float readCPMtoDoseRatio() {
   unsigned int addr;
   float ratio;
   float defaultRatio;
-  
+
   if (digitalRead(TUBE_SEL)) {                  // determine if the tube select switch is open or closed
     addr = PRI_RATIO_ADDR;                      // switch is open.  Use the primary tube ratio
     defaultRatio = PRI_RATIO;
-  } else {                                      // switch is closed.  Use the secondary tube ratio
+  } 
+  else {                                      // switch is closed.  Use the secondary tube ratio
     addr = SEC_RATIO_ADDR;
     defaultRatio = SEC_RATIO;
   }
@@ -494,10 +602,17 @@ float readCPMtoDoseRatio() {
 void writeCPMtoDoseRatio(float ratio) {
   if (digitalRead(TUBE_SEL)) {                  // determine if the tube select switch is open or closed
     writeFloatParam(ratio, PRI_RATIO_ADDR);     // write to the primary address
-  } else {
+  } 
+  else {
     writeFloatParam(ratio, SEC_RATIO_ADDR);     // write to the secondary address
   }
   resetOneMinCount();                           // reset the counts since we're changing the ratio - otherwise, they'll be off
   resetLongPeriodCount();
 }
+
+
+
+
+
+
 
