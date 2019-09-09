@@ -37,12 +37,12 @@ void Check_IR() { // check if remote used and process the menu
         if (inMenu) {
           noTone(TONE_PIN);             // silence is golden while in the menu
           menuChanged = true;
-          detachInterrupt(0);           // do not count while in menu
+          disableInterrupt(COUNT_PIN);  // do not count while in menu
         }
         else {                          // do this stuff when leaving menu
           Get_Settings();               // start using the new settings
           fastCnt = 0;                  // keep tone mode and bargraph from going crazy when exiting
-          attachInterrupt(0, GetEvent, FALLING); // attach interrupt again to resume counting
+          enableInterrupt(COUNT_PIN, GetEvent, FALLING); // attach interrupt again to resume counting
         }
         break;
 

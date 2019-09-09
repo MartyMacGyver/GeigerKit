@@ -60,7 +60,7 @@
 
 #include <Arduino.h>
 #include <EEPROM.h>
-#include <PinChangeInt.h>
+#include <EnableInterrupt.h>
 #include "GeigerKit.h"
 
 
@@ -105,7 +105,7 @@ void setup() {
 #if (ANALOG_METER)
   Wire.begin();                         // for PCF8591 I2C chip for meter output
 #endif
-  attachInterrupt(0, GetEvent, FALLING); // Geiger event on pin 2 triggers interrupt
+  enableInterrupt(COUNT_PIN, GetEvent, FALLING); // Geiger event on pin 2 triggers interrupt
   pinMode(LED_PIN, OUTPUT);             // setup LED pin
   pinMode(TUBE_SEL, INPUT);             // setup tube select jumper pin
   pinMode(SEL_BUTTON, INPUT);           // setup menu button
@@ -118,7 +118,7 @@ void setup() {
   pinMode(IR_PIN, INPUT);               // setup IR Input pin
   digitalWrite(IR_PIN, HIGH);
 
-  PCintPort::attachInterrupt(IR_PIN, &IR_ISR, FALLING);  // add more attachInterrupt code as required
+  enableInterrupt(IR_PIN, &IR_ISR, FALLING);  // add more attachInterrupt code as required
   Blink(LED_PIN, 4);                    // show it's alive
 
   // Reset everything if the select button is held down during power-on

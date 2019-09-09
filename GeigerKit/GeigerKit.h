@@ -21,8 +21,8 @@
 #define LCDPIN_D4          5             // LCD D4 pin
 #define LCDPIN_EN          4             // LCD enable pin
 #define LCDPIN_RS          3             // LCD register select (RS) pin
-//                         D2               Interrupt 0 for Geiger
-//                         D1 & D0          serial comm
+#define COUNT_PIN          2             // Interrupt 0 for Geiger
+//                         1 & 0          serial comm
 
 // defines for LCD if DogM display used
 #define DOGM_RST          -1             // Reset not used - PIN 8 is FREE
